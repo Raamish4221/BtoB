@@ -1,0 +1,173 @@
+@import "tailwindcss";
+@source "../**/*.{js,ts,jsx,tsx,mdx}";
+@source "../../components/**/*.{js,ts,jsx,tsx,mdx}";
+
+:root {
+  --background: #f4f7fb;
+  --foreground: #111827;
+  --surface: #ffffff;
+  --surface-border: #e5e7eb;
+  --muted: #6b7280;
+  --brand: #2563eb;
+  --brand-hover: #1d4ed8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+    --font-sans: "Geist", sans-serif;
+    --font-mono: "Geist Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b1220;
+    --foreground: #e5e7eb;
+    --surface: #111827;
+    --surface-border: #374151;
+    --muted: #9ca3af;
+    --brand: #3b82f6;
+    --brand-hover: #2563eb;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.app-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+  padding: 1.5rem;
+}
+
+.app-hero {
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.22), transparent 38%),
+    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.18), transparent 42%),
+    var(--surface);
+}
+
+.app-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.app-subtitle {
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+
+.app-input {
+  width: 100%;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.65rem;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 0.55rem 0.75rem;
+}
+
+.app-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--brand) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.app-button-primary {
+  border: none;
+  border-radius: 0.65rem;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.app-button-primary:hover {
+  background: var(--brand-hover);
+}
+
+.app-sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--surface-border);
+}
+
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.metric-card {
+  background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--surface) 85%, #dbeafe));
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.metric-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-top: 0.25rem;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  padding: 1rem;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 28px rgba(15, 23, 42, 0.12);
+  padding: 2rem;
+}
+
+.status-pill {
+  border-radius: 9999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.status-pill.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill.approved {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pill.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
