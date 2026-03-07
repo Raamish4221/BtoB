@@ -2,7 +2,7 @@ var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/wallet/page
 R.c("server/chunks/ssr/_bfb5428f._.js")
 R.c("server/chunks/ssr/[root-of-the-server]__5d5aaa26._.js")
 R.c("server/chunks/ssr/_2fcbdbb2._.js")
-R.c("server/chunks/ssr/[root-of-the-server]__1f50ddb9._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__7b7b2b43._.js")
 R.c("server/chunks/ssr/[root-of-the-server]__655f8d11._.js")
 R.c("server/chunks/ssr/[root-of-the-server]__8ecbddb6._.js")
 R.c("server/chunks/ssr/node_modules_next_dist_client_components_builtin_global-error_ece394eb.js")

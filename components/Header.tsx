@@ -1,14 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/context/AuthContext";
+import { useShop } from "@/app/context/ShopContext";
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const { user, logout, getInitials } = useAuth();
+  const { cartCount, favoriteCount } = useShop();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const router = useRouter();
 
@@ -17,8 +21,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
   return (
     <header className="app-header bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
       <div className="flex items-center justify-between px-4 py-3">
-
-        {/* Left — hamburger */}
         <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
@@ -31,10 +33,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </button>
         </div>
 
-        {/* Right — search, notifications, user */}
         <div className="flex items-center gap-3">
-
-          {/* Search */}
           <div className="hidden md:block">
             <input
               type="search"
@@ -43,7 +42,30 @@ export default function Header({ onMenuClick }: HeaderProps) {
             />
           </div>
 
-          {/* Notifications */}
+          <Link href="/favorites" className="header-icon-chip" aria-label="Favorites">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M3.172 5.172a4 4 0 015.656 0L12 8.343l3.172-3.171a4 4 0 115.656 5.656L12 19.657l-8.828-8.829a4 4 0 010-5.656z"
+              />
+            </svg>
+            <span className="header-chip-count">{favoriteCount}</span>
+          </Link>
+
+          <Link href="/cart" className="header-icon-chip" aria-label="Cart">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.8}
+                d="M3 3h2l1 5h13l-2 7H8L6 6H3m6 13a1 1 0 100 2 1 1 0 000-2zm7 0a1 1 0 100 2 1 1 0 000-2z"
+              />
+            </svg>
+            <span className="header-chip-count">{cartCount}</span>
+          </Link>
+
           <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 relative">
             <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -51,18 +73,14 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           </button>
 
-          {/* User avatar + dropdown */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen((prev) => !prev)}
               className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             >
-              {/* Avatar */}
               <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-semibold">
                 {initials}
               </div>
-
-              {/* Name + role (desktop only) */}
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-gray-800 dark:text-white leading-tight max-w-[130px] truncate">
                   {user?.full_name || "Loading..."}
@@ -71,22 +89,15 @@ export default function Header({ onMenuClick }: HeaderProps) {
                   {user?.role_name || ""}
                 </p>
               </div>
-
-              {/* Chevron */}
               <svg className="w-4 h-4 text-gray-400 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
 
-            {/* Dropdown */}
             {dropdownOpen && (
               <>
-                {/* Backdrop to close on outside click */}
                 <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-
                 <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-20 overflow-hidden">
-
-                  {/* User info */}
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold flex-shrink-0">
@@ -94,11 +105,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-800 dark:text-white truncate">
-                          {user?.full_name || "—"}
+                          {user?.full_name || "-"}
                         </p>
-                        {/* <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {user?.email || "—"}
-                        </p> */}
                         {user?.role_name && (
                           <span className="inline-block mt-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full capitalize">
                             {user.role_name}
@@ -108,7 +116,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     </div>
                   </div>
 
-                  {/* Company (if present) */}
                   {user?.company_name && (
                     <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-700">
                       <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-0.5">
@@ -120,10 +127,12 @@ export default function Header({ onMenuClick }: HeaderProps) {
                     </div>
                   )}
 
-                  {/* Menu actions */}
                   <div className="py-1">
                     <button
-                      onClick={() => { setDropdownOpen(false); router.push("/settings"); }}
+                      onClick={() => {
+                        setDropdownOpen(false);
+                        router.push("/settings");
+                      }}
                       className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -143,7 +152,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
                       Sign out
                     </button>
                   </div>
-
                 </div>
               </>
             )}

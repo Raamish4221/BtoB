@@ -1,6 +1,10 @@
 {
   "/_global-error/page": "/_global-error",
   "/_not-found/page": "/_not-found",
+  "/cart/page": "/cart",
+  "/favorites/page": "/favorites",
   "/page": "/",
+  "/products/[id]/page": "/products/[id]",
+  "/products/page": "/products",
   "/wallet/page": "/wallet"
 }

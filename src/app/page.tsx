@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { FormEvent, useState } from "react";
 import Dashboard from "@/components/Dashboard";
+import { getFavoriteProducts, useShop } from "@/app/context/ShopContext";
 
 interface DashboardTransaction {
   id: string;
@@ -11,7 +13,7 @@ interface DashboardTransaction {
   status: "Completed" | "Pending" | "Failed";
 }
 
-interface Product {
+interface ProductStat {
   id: string;
   name: string;
   category: string;
@@ -35,6 +37,15 @@ interface PendingOrderRow {
   status: "Pending" | "Processing";
 }
 
+interface SupportTicket {
+  id: string;
+  title: string;
+  description: string;
+  attachmentName: string;
+  createdAt: string;
+  status: "Pending" | "In Progress" | "Resolved";
+}
+
 const recentTransactions: DashboardTransaction[] = [
   { id: "TXN-1005", date: "2026-02-26 10:12", description: "Top-up approved", amount: 1200, status: "Completed" },
   { id: "TXN-1004", date: "2026-02-25 17:22", description: "Order #ORD-3002", amount: -280, status: "Completed" },
@@ -43,18 +54,11 @@ const recentTransactions: DashboardTransaction[] = [
   { id: "TXN-1001", date: "2026-02-23 11:44", description: "Order #ORD-2998", amount: -120, status: "Completed" },
 ];
 
-const bestSellingProducts: Product[] = [
+const bestSellingProducts: ProductStat[] = [
   { id: "P1", name: "Amazon Gift Card", category: "Gift Cards", sold: 480 },
   { id: "P2", name: "Netflix Premium", category: "Subscriptions", sold: 365 },
   { id: "P3", name: "Google Play Voucher", category: "Gift Cards", sold: 290 },
   { id: "P4", name: "Spotify Annual", category: "Subscriptions", sold: 205 },
-];
-
-const favoriteCandidates: Product[] = [
-  { id: "F1", name: "Steam Wallet Code", category: "Gaming", sold: 140 },
-  { id: "F2", name: "Apple Gift Card", category: "Gift Cards", sold: 222 },
-  { id: "F3", name: "Xbox Subscription", category: "Gaming", sold: 178 },
-  { id: "F4", name: "Canva Pro", category: "Productivity", sold: 130 },
 ];
 
 const topupRequests: TopupRequestRow[] = [
@@ -81,23 +85,45 @@ function queueStatusBadge(status: TopupRequestRow["status"] | PendingOrderRow["s
   return "status-pill pending";
 }
 
-export default function Page() {
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(["F2", "F4"]);
-  const lastLogin = "February 26, 2026 09:31 AM";
+function ticketStatusBadge(status: SupportTicket["status"]) {
+  if (status === "Resolved") return "status-pill approved";
+  if (status === "In Progress") return "status-pill rejected";
+  return "status-pill pending";
+}
 
-  const pendingTopups = 2;
-  const pendingOrders = 3;
+export default function Page() {
+  const { cartCount, favoriteCount, favoriteIds } = useShop();
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
+  const [supportTitle, setSupportTitle] = useState("");
+  const [supportDescription, setSupportDescription] = useState("");
+  const [supportAttachment, setSupportAttachment] = useState<File | null>(null);
+  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+
+  const favorites = getFavoriteProducts(favoriteIds);
+  const lastLogin = "February 26, 2026 09:31 AM";
+  const pendingTopups = topupRequests.filter((req) => req.status === "Pending").length;
+  const pendingOrders = pendingOrdersTable.filter((order) => order.status === "Pending").length;
   const walletBalance = 2850;
 
-  const favorites = useMemo(
-    () => favoriteCandidates.filter((product) => favoriteIds.includes(product.id)),
-    [favoriteIds]
-  );
+  const handleSupportSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
-  const toggleFavorite = (id: string) => {
-    setFavoriteIds((prev) =>
-      prev.includes(id) ? prev.filter((favId) => favId !== id) : [...prev, id]
-    );
+    const ticketId = `TKT-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    const newTicket: SupportTicket = {
+      id: ticketId,
+      title: supportTitle.trim(),
+      description: supportDescription.trim(),
+      attachmentName: supportAttachment?.name || "No attachment",
+      createdAt: new Date().toLocaleString(),
+      status: "Pending",
+    };
+
+    setSupportTickets((prev) => [newTicket, ...prev]);
+    setSupportTitle("");
+    setSupportDescription("");
+    setSupportAttachment(null);
+    setIsSupportModalOpen(false);
   };
 
   return (
@@ -123,6 +149,49 @@ export default function Page() {
           <div className="metric-card">
             <p className="metric-label">Pending Orders</p>
             <p className="metric-value">{pendingOrders}</p>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="app-card">
+            <p className="metric-label">Cart Items</p>
+            <p className="text-2xl font-bold mt-1">{cartCount}</p>
+          </div>
+          <div className="app-card">
+            <p className="metric-label">Favorites</p>
+            <p className="text-2xl font-bold mt-1">{favoriteCount}</p>
+          </div>
+          <div className="app-card md:col-span-2 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="metric-label">Favorite Products</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  {favorites.length === 0
+                    ? "No favorites yet."
+                    : favorites.slice(0, 3).map((item) => item.name).join(", ")}
+                </p>
+              </div>
+              <Link href="/favorites" className="app-button-secondary">
+                Open Favorites
+              </Link>
+            </div>
+          </div>
+          <div className="app-card md:col-span-2 xl:col-span-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="metric-label">Support</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  Raise a ticket for billing, wallet, or order issues.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="app-button-primary"
+                onClick={() => setIsSupportModalOpen(true)}
+              >
+                Open Support
+              </button>
+            </div>
           </div>
         </section>
 
@@ -216,45 +285,31 @@ export default function Page() {
           </div>
 
           <div className="app-card">
-            <h2 className="text-lg font-semibold mb-3">Favorite Products</h2>
-            <div className="grid grid-cols-1 gap-3">
-              {favoriteCandidates.map((product) => {
-                const isFavorite = favoriteIds.includes(product.id);
-                return (
-                  <button
-                    key={product.id}
-                    type="button"
-                    onClick={() => toggleFavorite(product.id)}
-                    className={`text-left rounded-lg border p-3 transition ${
-                      isFavorite
-                        ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                        : "border-gray-200 dark:border-gray-700 hover:border-blue-300"
-                    }`}
-                  >
-                    <p className="font-semibold">{product.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{product.category}</p>
-                    <p className="text-xs mt-1">{isFavorite ? "Favorited" : "Click to favorite"}</p>
-                  </button>
-                );
-              })}
+            <h2 className="text-lg font-semibold mb-3">Reorder Shortcut</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Link href="/products/amazon-gift-card" className="app-button-primary text-center">
+                Reorder Amazon Gift Card
+              </Link>
+              <Link href="/products/netflix-premium" className="app-button-primary text-center">
+                Reorder Netflix Premium
+              </Link>
+              <Link href="/products/google-play-voucher" className="app-button-primary text-center">
+                Reorder Google Play Voucher
+              </Link>
+              <Link href="/products/spotify-annual" className="app-button-primary text-center">
+                Reorder Spotify Annual
+              </Link>
             </div>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-3">
-              Selected favorites: {favorites.map((item) => item.name).join(", ") || "None"}
-            </p>
           </div>
         </section>
 
         <section className="app-card">
-          <h2 className="text-lg font-semibold mb-3">Reorder Shortcut</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <button className="app-button-primary">Reorder Amazon Gift Card</button>
-            <button className="app-button-primary">Reorder Netflix Premium</button>
-            <button className="app-button-primary">Reorder Google Play Voucher</button>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold">Recent Transactions (Last 5)</h2>
+            <Link href="/products" className="app-button-secondary">
+              Browse Products
+            </Link>
           </div>
-        </section>
-
-        <section className="app-card">
-          <h2 className="text-lg font-semibold mb-3">Recent Transactions (Last 5)</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
@@ -284,7 +339,121 @@ export default function Page() {
             </table>
           </div>
         </section>
+
+        <section className="app-card">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="text-lg font-semibold">Support Tickets</h2>
+            <button
+              type="button"
+              className="app-button-secondary"
+              onClick={() => setIsSupportModalOpen(true)}
+            >
+              Generate Ticket
+            </button>
+          </div>
+
+          {supportTickets.length === 0 ? (
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              No tickets yet. Click &quot;Generate Ticket&quot; to create one.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
+                    <th className="py-2 pr-4">Ticket ID</th>
+                    <th className="py-2 pr-4">Title</th>
+                    <th className="py-2 pr-4">Attachment</th>
+                    <th className="py-2 pr-4">Created At</th>
+                    <th className="py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {supportTickets.map((ticket) => (
+                    <tr key={ticket.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                      <td className="py-3 pr-4 font-medium">{ticket.id}</td>
+                      <td className="py-3 pr-4">{ticket.title}</td>
+                      <td className="py-3 pr-4">{ticket.attachmentName}</td>
+                      <td className="py-3 pr-4">{ticket.createdAt}</td>
+                      <td className="py-3">
+                        <span className={ticketStatusBadge(ticket.status)}>{ticket.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </div>
+
+      {isSupportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl app-card">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="text-lg font-semibold">Create Support Ticket</h2>
+              <button
+                type="button"
+                onClick={() => setIsSupportModalOpen(false)}
+                className="app-button-secondary"
+              >
+                Close
+              </button>
+            </div>
+
+            <form className="grid gap-3" onSubmit={handleSupportSubmit}>
+              <div>
+                <label className="block text-sm font-medium mb-1">Title</label>
+                <input
+                  type="text"
+                  required
+                  value={supportTitle}
+                  onChange={(e) => setSupportTitle(e.target.value)}
+                  className="app-input"
+                  placeholder="Short issue title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Attach Image or File</label>
+                <input
+                  type="file"
+                  onChange={(e) => setSupportAttachment(e.target.files?.[0] || null)}
+                  className="app-input"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
+                />
+                {supportAttachment && (
+                  <p className="text-xs text-gray-500 mt-1">Selected: {supportAttachment.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Problem Description</label>
+                <textarea
+                  required
+                  value={supportDescription}
+                  onChange={(e) => setSupportDescription(e.target.value)}
+                  className="app-input min-h-32"
+                  placeholder="Describe the issue in detail"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsSupportModalOpen(false)}
+                  className="app-button-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="app-button-primary">
+                  Submit Ticket
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Dashboard>
   );
 }
