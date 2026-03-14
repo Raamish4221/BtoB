@@ -2,34 +2,63 @@
 @source "../**/*.{js,ts,jsx,tsx,mdx}";
 @source "../../components/**/*.{js,ts,jsx,tsx,mdx}";
 
+/* -----------------------------
+   BRAND THEME (Card Cove)
+----------------------------- */
+
 :root {
-  --background: #f4f7fb;
-  --foreground: #111827;
+  --background: #f6f8fa;
+  --foreground: #111111;
+
   --surface: #ffffff;
-  --surface-border: #e5e7eb;
+  --surface-border: #e6edf3;
+
   --muted: #6b7280;
-  --brand: #2563eb;
-  --brand-hover: #1d4ed8;
+
+  /* Brand palette from logo */
+  --brand: #37a9c9;
+  --brand-hover: #2f7fb2;
+  --brand-soft: #67c7d8;
+
+  /* Brand gradient */
+  --brand-gradient: linear-gradient(
+    135deg,
+    #67c7d8 0%,
+    #37a9c9 50%,
+    #2f7fb2 100%
+  );
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-    --font-sans: "Geist", sans-serif;
-    --font-mono: "Geist Mono", monospace;
+  --font-sans: "Geist", sans-serif;
+  --font-mono: "Geist Mono", monospace;
 }
+
+/* -----------------------------
+   DARK MODE
+----------------------------- */
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0b1220;
+    --background: #0f1720;
     --foreground: #e5e7eb;
-    --surface: #111827;
-    --surface-border: #374151;
+
+    --surface: #151e29;
+    --surface-border: #2a3645;
+
     --muted: #9ca3af;
-    --brand: #3b82f6;
-    --brand-hover: #2563eb;
+
+    --brand: #37a9c9;
+    --brand-hover: #2f7fb2;
+    --brand-soft: #67c7d8;
   }
 }
+
+/* -----------------------------
+   GLOBAL
+----------------------------- */
 
 body {
   background: var(--background);
@@ -47,6 +76,10 @@ body {
   gap: 1.5rem;
 }
 
+/* -----------------------------
+   CARDS
+----------------------------- */
+
 .app-card {
   background: var(--surface);
   border: 1px solid var(--surface-border);
@@ -55,12 +88,20 @@ body {
   padding: 1.5rem;
 }
 
+/* -----------------------------
+   HERO SECTION
+----------------------------- */
+
 .app-hero {
   background:
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.22), transparent 38%),
-    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.18), transparent 42%),
+    radial-gradient(circle at top right, rgba(55,169,201,0.25), transparent 40%),
+    radial-gradient(circle at bottom left, rgba(103,199,216,0.25), transparent 45%),
     var(--surface);
 }
+
+/* -----------------------------
+   TYPOGRAPHY
+----------------------------- */
 
 .app-title {
   font-size: 1.5rem;
@@ -73,6 +114,10 @@ body {
   margin-top: 0.25rem;
   color: var(--muted);
 }
+
+/* -----------------------------
+   INPUTS
+----------------------------- */
 
 .app-input {
   width: 100%;
@@ -88,20 +133,46 @@ body {
   outline-offset: 1px;
 }
 
+/* -----------------------------
+   BUTTONS
+----------------------------- */
+
 .app-button-primary {
   border: none;
   border-radius: 0.65rem;
-  background: var(--brand);
+  background: var(--brand-gradient);
   color: #fff;
   font-weight: 600;
   padding: 0.6rem 0.9rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .app-button-primary:hover {
-  background: var(--brand-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(55, 169, 201, 0.35);
 }
+
+.app-button-secondary {
+  border: 1px solid var(--surface-border);
+  border-radius: 0.65rem;
+  background: transparent;
+  color: var(--foreground);
+  font-weight: 600;
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.app-button-secondary:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* -----------------------------
+   LAYOUT
+----------------------------- */
 
 .app-sidebar {
   background: var(--surface);
@@ -114,8 +185,16 @@ body {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
 }
 
+/* -----------------------------
+   METRIC CARDS
+----------------------------- */
+
 .metric-card {
-  background: linear-gradient(145deg, var(--surface), color-mix(in srgb, var(--surface) 85%, #dbeafe));
+  background: linear-gradient(
+    145deg,
+    var(--surface),
+    color-mix(in srgb, var(--surface) 85%, #d9f4fb)
+  );
   border: 1px solid var(--surface-border);
   border-radius: 0.75rem;
   padding: 1rem;
@@ -124,7 +203,6 @@ body {
 .metric-label {
   font-size: 0.78rem;
   color: var(--muted);
-  letter-spacing: 0.02em;
 }
 
 .metric-value {
@@ -133,12 +211,20 @@ body {
   margin-top: 0.25rem;
 }
 
+/* -----------------------------
+   LOGIN
+----------------------------- */
+
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #eff6ff 0%, #e0e7ff 100%);
+  background: linear-gradient(
+    135deg,
+    #e6f7fb 0%,
+    #c9f0f8 100%
+  );
   padding: 1rem;
 }
 
@@ -149,6 +235,10 @@ body {
   box-shadow: 0 20px 28px rgba(15, 23, 42, 0.12);
   padding: 2rem;
 }
+
+/* -----------------------------
+   STATUS PILLS
+----------------------------- */
 
 .status-pill {
   border-radius: 9999px;
@@ -172,6 +262,10 @@ body {
   color: #991b1b;
 }
 
+/* -----------------------------
+   PRODUCT GRID
+----------------------------- */
+
 .product-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
@@ -193,32 +287,6 @@ body {
   box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
 }
 
-.product-visual {
-  height: 140px;
-  padding: 0.75rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.product-badge {
-  border-radius: 9999px;
-  background: rgba(17, 24, 39, 0.68);
-  color: #fff;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.02em;
-}
-
-.product-category {
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  backdrop-filter: blur(4px);
-  padding: 0.2rem 0.55rem;
-  font-size: 0.68rem;
-}
-
 .product-content {
   padding: 0.95rem;
   display: grid;
@@ -228,7 +296,6 @@ body {
 .product-name {
   color: var(--foreground);
   font-weight: 700;
-  line-height: 1.35;
 }
 
 .product-name:hover {
@@ -236,15 +303,12 @@ body {
 }
 
 .product-description {
-  margin-top: 0.3rem;
   color: var(--muted);
   font-size: 0.82rem;
-  line-height: 1.45;
 }
 
 .product-meta {
   display: flex;
-  align-items: center;
   justify-content: space-between;
   color: var(--muted);
   font-size: 0.78rem;
@@ -255,164 +319,9 @@ body {
   font-size: 1.12rem;
 }
 
-.favorite-button {
-  border: 1px solid var(--surface-border);
-  background: var(--surface);
-  color: #94a3b8;
-  border-radius: 9999px;
-  min-width: 36px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 0.75rem;
-  gap: 0.4rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.favorite-button:hover {
-  border-color: #f43f5e;
-  color: #f43f5e;
-}
-
-.favorite-button.is-active {
-  border-color: #f43f5e;
-  background: #fff1f2;
-  color: #f43f5e;
-}
-
-.product-actions {
-  display: flex;
-  gap: 0.55rem;
-}
-
-.app-button-secondary {
-  border: 1px solid var(--surface-border);
-  border-radius: 0.65rem;
-  background: transparent;
-  color: var(--foreground);
-  font-weight: 600;
-  padding: 0.6rem 0.85rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
-
-.app-button-secondary:hover {
-  border-color: color-mix(in srgb, var(--brand) 40%, var(--surface-border));
-  color: var(--brand);
-}
-
-.filter-chip {
-  border: 1px solid var(--surface-border);
-  border-radius: 9999px;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  background: var(--surface);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.filter-chip.is-active {
-  background: #dbeafe;
-  border-color: #93c5fd;
-  color: #1d4ed8;
-}
-
-.product-details {
-  display: grid;
-  grid-template-columns: minmax(200px, 320px) 1fr;
-  gap: 1.25rem;
-  align-items: stretch;
-}
-
-.product-details-visual {
-  min-height: 260px;
-  border-radius: 0.95rem;
-  padding: 1rem;
-}
-
-.product-details-content {
-  display: grid;
-  align-content: start;
-}
-
-.quantity-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--surface-border);
-  border-radius: 0.6rem;
-  padding: 0.35rem 0.55rem;
-}
-
-.quantity-picker span {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.quantity-picker input {
-  width: 70px;
-  border: none;
-  background: transparent;
-  color: var(--foreground);
-  font-weight: 600;
-}
-
-.quantity-picker input:focus {
-  outline: none;
-}
-
-.related-product-link {
-  border: 1px solid var(--surface-border);
-  border-radius: 9999px;
-  font-size: 0.8rem;
-  padding: 0.35rem 0.7rem;
-  color: var(--foreground);
-}
-
-.related-product-link:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
-
-.cart-item {
-  border: 1px solid var(--surface-border);
-  border-radius: 0.75rem;
-  padding: 0.85rem;
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
-}
-
-.cart-item-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.cart-item-actions input {
-  width: 70px;
-  border: 1px solid var(--surface-border);
-  border-radius: 0.45rem;
-  padding: 0.3rem 0.4rem;
-  background: var(--surface);
-}
-
-.cart-footer {
-  margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--surface-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
+/* -----------------------------
+   HEADER ICONS
+----------------------------- */
 
 .header-icon-chip {
   position: relative;
@@ -428,7 +337,7 @@ body {
 }
 
 .header-icon-chip:hover {
-  border-color: color-mix(in srgb, var(--brand) 45%, var(--surface-border));
+  border-color: var(--brand);
   color: var(--brand);
 }
 
@@ -446,29 +355,14 @@ body {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  padding: 0 0.2rem;
 }
 
+/* -----------------------------
+   RESPONSIVE
+----------------------------- */
+
 @media (max-width: 900px) {
-  .product-details {
-    grid-template-columns: 1fr;
-  }
-
-  .product-details-visual {
-    min-height: 200px;
-  }
-
   .product-actions {
     flex-direction: column;
-  }
-
-  .cart-item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .cart-footer {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }

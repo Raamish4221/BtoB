@@ -83,10 +83,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside className={`app-sidebar fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
         <div className="flex flex-col h-full">
           <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
-            <span className="font-semibold text-lg text-gray-800 dark:text-white">CardCove</span>
+            <img
+              src="/assets/card-cove-logo.png"
+              alt="Card Cove"
+              className="h-6 w-auto object-contain"
+            />
+            <span className="font-semibold text-lg text-gray-800 dark:text-white tracking-tight">CardCove</span>
           </div>
 
           <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
@@ -98,11 +100,10 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   key={item.name}
                   href={item.href}
                   onClick={onClose}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                    ? "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    }`}
                 >
                   {item.icon}
                   <span className="font-medium">{item.name}</span>
