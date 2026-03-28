@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/app/context/AuthContext";
+import { useState, FormEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -79,8 +79,21 @@ const menuItems = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, getInitials } = useAuth();
-  const initials = user?.full_name ? getInitials(user.full_name) : "?";
+
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [supportTitle, setSupportTitle] = useState("");
+  const [supportDescription, setSupportDescription] = useState("");
+  const [supportAttachment, setSupportAttachment] = useState<File | null>(null);
+
+  const handleSupportSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setSupportTitle("");
+    setSupportDescription("");
+    setSupportAttachment(null);
+    setIsHelpOpen(false);
+    alert("Support ticket submitted successfully!");
+  };
+
   return (
     <>
       {isOpen && (
@@ -91,8 +104,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
 
       <aside className={`app-sidebar fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-200 ease-in-out ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
-        <div className="flex flex-col h-full">
-          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <img
               src="/assets/card-cove-logo.png"
               alt="Card Cove"
@@ -101,7 +114,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             <span className="font-semibold text-lg text-gray-800 dark:text-white tracking-tight">CardCove</span>
           </div>
 
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto min-h-0">
             {menuItems.map((item) => {
               const isActive =
                 item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -122,19 +135,87 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             })}
           </nav>
 
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center gap-3 px-4 py-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
-                {initials}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{user?.full_name || "Loading..."}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.email || ""}</p>
-              </div>
-            </div>
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <button
+              onClick={() => setIsHelpOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40"
+            >
+              <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 11-12.728 0M12 9v2m0 4h.01" />
+              </svg>
+              Need Help?
+            </button>
           </div>
         </div>
       </aside>
+
+      {isHelpOpen && (
+        <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl app-card">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="text-lg font-semibold">Create Support Ticket</h2>
+              <button
+                type="button"
+                onClick={() => setIsHelpOpen(false)}
+                className="app-button-secondary"
+              >
+                Close
+              </button>
+            </div>
+
+            <form className="grid gap-3" onSubmit={handleSupportSubmit}>
+              <div>
+                <label className="block text-sm font-medium mb-1">Title</label>
+                <input
+                  type="text"
+                  required
+                  value={supportTitle}
+                  onChange={(e) => setSupportTitle(e.target.value)}
+                  className="app-input"
+                  placeholder="Short issue title"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Attach Image or File</label>
+                <input
+                  type="file"
+                  onChange={(e) => setSupportAttachment(e.target.files?.[0] || null)}
+                  className="app-input"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
+                />
+                {supportAttachment && (
+                  <p className="text-xs text-gray-500 mt-1">Selected: {supportAttachment.name}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Problem Description</label>
+                <textarea
+                  required
+                  value={supportDescription}
+                  onChange={(e) => setSupportDescription(e.target.value)}
+                  className="app-input min-h-32"
+                  placeholder="Describe the issue in detail"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsHelpOpen(false)}
+                  className="app-button-secondary"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="app-button-primary">
+                  Submit Ticket
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
