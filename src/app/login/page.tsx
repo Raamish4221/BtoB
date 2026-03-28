@@ -23,7 +23,7 @@ export default function LoginPage() {
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://d628-2400-adc1-1d2-1800-d42c-b4fd-f0bf-42f4.ngrok-free.app"}/api/v1/auth/client/login`,
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/api/v1/auth/client/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

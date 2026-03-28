@@ -1,6 +1,6 @@
 // lib/api.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://d628-2400-adc1-1d2-1800-d42c-b4fd-f0bf-42f4.ngrok-free.app';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_VERSION = 'v1';
 
 class ApiService {
@@ -187,50 +187,36 @@ class ApiService {
     return this.request(`/users/${userId}/products`, { method: 'PUT', body: JSON.stringify({ productAccess }) });
   }
 
-  // ─── WALLET ──────────────────────────────────────────────────────────────
-
-  // ─── WALLET – ADMIN ───────────────────────────────────────────────────────
-
-  /** All wallet balances (admin wallet balances table) */
-  async getAllWalletBalances(filters?: { page?: number; limit?: number; search?: string }) {
-    const params = new URLSearchParams();
-    if (filters?.page)   params.append('page',   String(filters.page));
-    if (filters?.limit)  params.append('limit',  String(filters.limit));
-    if (filters?.search) params.append('search', filters.search);
-    return this.request(`/wallet/balances${params.toString() ? `?${params}` : ''}`);
+   // ============================================
+  // WALLET
+  // ============================================
+ 
+  // ── CLIENT WALLET ──────────────────────────────────────────────────────────
+  async getWalletBalance()  { return this.request('/wallet/balance'); }
+ 
+  async getWalletTransactions(page = 1, limit = 20) {
+    return this.request(`/wallet/transactions?page=${page}&limit=${limit}`);
   }
-
-  /** All topup requests with optional status filter */
-  async getTopupRequests(status?: string, page = 1, limit = 20) {
+ 
+  async getMyTopupRequests(status?: string, page = 1, limit = 20) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (status) params.append('status', status);
-    return this.request(`/wallet/topup-requests?${params}`);
+    if (status) params.set('status', status);
+    return this.request(`/wallet/my-topup-requests?${params}`);
   }
-
-  /** Approve a topup request — requires MFA */
-  async approveTopup(requestId: number, mfaCode: string) {
-    return this.request(`/wallet/topup/${requestId}/approve`, {
-      method: 'POST',
-      body: JSON.stringify({ mfaCode }),
-    });
-  }
-
-  /** Reject a topup request — requires MFA */
-  async rejectTopup(requestId: number, reason: string, mfaCode: string) {
-    return this.request(`/wallet/topup/${requestId}/reject`, {
-      method: 'POST',
-      body: JSON.stringify({ reason, mfaCode }),
-    });
-  }
-
-  /** All transactions across all wallets (admin history table) */
-  async getAllTransactions(filters?: { page?: number; limit?: number; userId?: number; type?: string }) {
-    const params = new URLSearchParams();
-    if (filters?.page)   params.append('page',   String(filters.page));
-    if (filters?.limit)  params.append('limit',  String(filters.limit));
-    if (filters?.userId) params.append('userId', String(filters.userId));
-    if (filters?.type)   params.append('type',   filters.type);
-    return this.request(`/wallet/transactions/all${params.toString() ? `?${params}` : ''}`);
+ 
+  /** Submit topup request — sends multipart/form-data so the receipt file is included */
+  async requestTopup(amount: number, receiptFile: File | null) {
+    const fd = new FormData();
+    fd.append('amount', String(amount));
+    if (receiptFile) fd.append('receipt', receiptFile);
+ 
+    const headers: HeadersInit = {};
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('accessToken');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${this.baseURL}/wallet/topup`, { method: 'POST', headers, body: fd });
+    return this.handleResponse(res);
   }
 // ============================================
   // PRODUCTS

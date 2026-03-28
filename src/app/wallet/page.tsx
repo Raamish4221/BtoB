@@ -1,7 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Dashboard from "@/components/Dashboard";
+import { api } from "@/src/app/lib/api";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TopupRequest {
   id: string;
@@ -10,7 +13,7 @@ export interface TopupRequest {
   userEmail: string;
   company: string;
   amount: number;
-  receiptUrl: string;
+  receiptUrl: string | null;
   requestDate: string;
   status: "pending" | "approved" | "rejected";
   reviewedBy?: string;
@@ -18,379 +21,511 @@ export interface TopupRequest {
   rejectionReason?: string;
 }
 
-export interface WalletBalance {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  company: string;
-  balance: number;
-  lastTopup?: string;
-  lastTopupAmount?: number;
-  totalTopups: number;
-  totalSpent: number;
-  createdAt: string;
-}
-
 export interface Transaction {
   id: string;
-  userId: string;
-  userName: string;
-  company: string;
-  type: "topup" | "purchase" | "refund" | "adjustment";
+  type: "credit" | "debit";
   amount: number;
   balanceBefore: number;
   balanceAfter: number;
   description: string;
   timestamp: string;
-  performedBy: string;
+  processedByName?: string;
 }
 
-const seedRequests: TopupRequest[] = [
-  {
-    id: "REQ-1209",
-    userId: "CUS-001",
-    userName: "Raamish Customer",
-    userEmail: "raamish@cardcove.com",
-    company: "CardCove",
-    amount: 450,
-    receiptUrl: "bank-transfer-feb.pdf",
-    requestDate: "2026-02-24 14:20",
-    status: "pending",
-  },
-  {
-    id: "REQ-1210",
-    userId: "CUS-001",
-    userName: "Raamish Customer",
-    userEmail: "raamish@cardcove.com",
-    company: "CardCove",
-    amount: 900,
-    receiptUrl: "topup-slip-900.png",
-    requestDate: "2026-02-25 09:40",
-    status: "pending",
-  },
-];
-
-const seedTransactions: Transaction[] = [
-  {
-    id: "TXN-9001",
-    userId: "CUS-001",
-    userName: "Raamish Customer",
-    company: "CardCove",
-    type: "topup",
-    amount: 1000,
-    balanceBefore: 2200,
-    balanceAfter: 3200,
-    description: "Wallet topup approved",
-    timestamp: "2026-02-20 11:03",
-    performedBy: "Admin",
-  },
-  {
-    id: "TXN-9002",
-    userId: "CUS-001",
-    userName: "Raamish Customer",
-    company: "CardCove",
-    type: "purchase",
-    amount: -350,
-    balanceBefore: 3200,
-    balanceAfter: 2850,
-    description: "Purchase order #PO-1221",
-    timestamp: "2026-02-22 09:40",
-    performedBy: "System",
-  },
-];
-
-function statusClasses(status: TopupRequest["status"]) {
-  if (status === "approved") return "status-pill approved";
-  if (status === "rejected") return "status-pill rejected";
-  return "status-pill pending";
+export interface WalletData {
+  wallet_id: string;
+  balance: number;
+  currency: string;
+  status: string;
+  total_topups: number;
+  total_spent: number;
 }
 
-function currentTimestamp() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
-    2,
-    "0"
-  )}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(
-    2,
-    "0"
-  )}:${String(now.getMinutes()).padStart(2, "0")}`;
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function statusPillCls(status: TopupRequest["status"]) {
+  if (status === "approved") return "inline-block px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400";
+  if (status === "rejected") return "inline-block px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400";
+  return "inline-block px-2 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400";
 }
+function formatDateTime(raw: string | null | undefined): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleString(undefined, {
+    day:    "2-digit",
+    month:  "short",
+    year:   "numeric",
+    hour:   "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+function mapRequest(r: any): TopupRequest {
+  return {
+    id:              String(r.id),
+    userId:          String(r.user_id || ""),
+    userName:        r.userName  || "",
+    userEmail:       r.userEmail || "",
+    company:         r.company   || "",
+    amount:          parseFloat(r.amount),
+    receiptUrl:      r.receiptUrl || null,
+    requestDate:     r.requestDate || r.created_at || "",
+    status:          r.status,
+    reviewedBy:      r.reviewedBy      || undefined,
+    reviewedAt:      r.reviewedAt      || undefined,
+    rejectionReason: r.rejectionReason || undefined,
+  };
+}
+
+function mapTransaction(t: any): Transaction {
+  return {
+    id:              String(t.id),
+    type:            t.type || t.transaction_type,
+    amount:          parseFloat(t.amount),
+    balanceBefore:   parseFloat(t.balance_before  || t.balanceBefore  || 0),
+    balanceAfter:    parseFloat(t.balance_after   || t.balanceAfter   || 0),
+    description:     t.description || "",
+    timestamp:       t.created_at  || t.timestamp || "",
+    processedByName: t.processedByName || undefined,
+  };
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function WalletPage() {
   const [activeTab, setActiveTab] = useState<"topup" | "history">("topup");
-  const [requests, setRequests] = useState<TopupRequest[]>(seedRequests);
-  const [transactions, setTransactions] = useState<Transaction[]>(seedTransactions);
-  const [notice, setNotice] = useState("");
 
-  const [openTopupModal, setOpenTopupModal] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  // Data
+  const [wallet,        setWallet]        = useState<WalletData | null>(null);
+  const [requests,      setRequests]      = useState<TopupRequest[]>([]);
+  const [transactions,  setTransactions]  = useState<Transaction[]>([]);
+  const [reqPage,       setReqPage]       = useState(1);
+  const [txnPage,       setTxnPage]       = useState(1);
+  const [reqTotal,      setReqTotal]      = useState(0);
+  const [txnTotal,      setTxnTotal]      = useState(0);
+  const [reqTotalPages, setReqTotalPages] = useState(1);
+  const [txnTotalPages, setTxnTotalPages] = useState(1);
 
-  const pendingRequests = useMemo(
-    () => requests.filter((request) => request.status === "pending"),
-    [requests]
-  );
-  const currentBalance = 2850;
-  const pendingAmount = pendingRequests.reduce((sum, item) => sum + item.amount, 0);
+  // Loading / error
+  const [loadingWallet,   setLoadingWallet]   = useState(true);
+  const [loadingRequests, setLoadingRequests] = useState(true);
+  const [loadingTxns,     setLoadingTxns]     = useState(true);
+  const [error,           setError]           = useState<string | null>(null);
 
-  const handleSubmitTopup = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const numericAmount = Number(amount);
+  // Topup modal
+  const [showTopupModal, setShowTopupModal] = useState(false);
+  const [amount,         setAmount]         = useState("");
+  const [receiptFile,    setReceiptFile]    = useState<File | null>(null);
+  const [submitting,     setSubmitting]     = useState(false);
+  const [submitError,    setSubmitError]    = useState<string | null>(null);
+  const [submitSuccess,  setSubmitSuccess]  = useState<string | null>(null);
 
-    if (!numericAmount || numericAmount <= 0) {
-      setNotice("Please enter a valid top-up amount.");
-      return;
+  // ─── Loaders ────────────────────────────────────────────────────────────────
+
+  const loadWallet = useCallback(async () => {
+    try {
+      setLoadingWallet(true);
+      const res = await api.getWalletBalance();
+      setWallet(res.data);
+    } catch (e: any) {
+      setError(e.message || "Failed to load wallet");
+    } finally {
+      setLoadingWallet(false);
     }
-    if (!receiptFile) {
-      setNotice("Please upload a receipt file before submitting.");
-      return;
+  }, []);
+
+  const loadRequests = useCallback(async () => {
+    try {
+      setLoadingRequests(true);
+      const res = await api.getMyTopupRequests(undefined, reqPage, 10);
+      setRequests((res.data || []).map(mapRequest));
+      setReqTotal(res.pagination?.total || 0);
+      setReqTotalPages(res.pagination?.totalPages || 1);
+    } catch (e: any) {
+      setError(e.message || "Failed to load requests");
+    } finally {
+      setLoadingRequests(false);
     }
+  }, [reqPage]);
 
-    const requestId = `REQ-${1000 + requests.length + 1}`;
-    const timestamp = currentTimestamp();
+  const loadTransactions = useCallback(async () => {
+    try {
+      setLoadingTxns(true);
+      const res = await api.getWalletTransactions(txnPage, 20);
+      setTransactions((res.data || []).map(mapTransaction));
+      setTxnTotal(res.pagination?.total || 0);
+      setTxnTotalPages(res.pagination?.totalPages || 1);
+    } catch (e: any) {
+      setError(e.message || "Failed to load transactions");
+    } finally {
+      setLoadingTxns(false);
+    }
+  }, [txnPage]);
 
-    const newRequest: TopupRequest = {
-      id: requestId,
-      userId: "CUS-001",
-      userName: "Raamish Customer",
-      userEmail: "raamish@cardcove.com",
-      company: "CardCove",
-      amount: numericAmount,
-      receiptUrl: receiptFile.name,
-      requestDate: timestamp,
-      status: "pending",
-    };
+  useEffect(() => { loadWallet(); },       [loadWallet]);
+  useEffect(() => { loadRequests(); },     [loadRequests]);
+  useEffect(() => { loadTransactions(); }, [loadTransactions]);
 
-    setRequests((prev) => [newRequest, ...prev]);
-    setTransactions((prev) => [
-      {
-        id: `TXN-${9000 + prev.length + 1}`,
-        userId: "CUS-001",
-        userName: "Raamish Customer",
-        company: "CardCove",
-        type: "topup",
-        amount: numericAmount,
-        balanceBefore: currentBalance,
-        balanceAfter: currentBalance,
-        description: `Top-up request submitted (${requestId})`,
-        timestamp,
-        performedBy: "Customer",
-      },
-      ...prev,
-    ]);
+  // ─── Derived ────────────────────────────────────────────────────────────────
 
-    setNotice(`Top-up request ${requestId} submitted.`);
-    setOpenTopupModal(false);
-    setAmount("");
-    setReceiptFile(null);
+  const pendingRequests = useMemo(() => requests.filter(r => r.status === "pending"), [requests]);
+  const pendingAmount   = useMemo(() => pendingRequests.reduce((s, r) => s + r.amount, 0), [pendingRequests]);
+  const balance         = wallet ? parseFloat(String(wallet.balance)) : 0;
+  const currency        = wallet?.currency || "USD";
+
+  // ─── Submit topup ────────────────────────────────────────────────────────────
+
+  const handleSubmitTopup = async (e: FormEvent) => {
+    e.preventDefault();
+    setSubmitError(null);
+    const num = parseFloat(amount);
+    if (!num || num <= 0) { setSubmitError("Please enter a valid amount."); return; }
+    if (!receiptFile)     { setSubmitError("Please attach a receipt file."); return; }
+
+    setSubmitting(true);
+    try {
+      const res = await api.requestTopup(num, receiptFile);
+      setSubmitSuccess(`Request #${res.data?.requestId} submitted! Awaiting admin approval.`);
+      setShowTopupModal(false);
+      setAmount("");
+      setReceiptFile(null);
+      await Promise.all([loadWallet(), loadRequests()]);
+    } catch (e: any) {
+      setSubmitError(e.message || "Failed to submit request.");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <Dashboard>
-      <div className="app-page">
-        <section className="app-card app-hero">
-          <div className="flex flex-wrap justify-between gap-4 items-end">
-            <div>
-              <h1 className="app-title">Wallet</h1>
-              <p className="app-subtitle">Track balances, submit top-up requests, and monitor activity.</p>
-            </div>
-            <button className="app-button-primary px-5 py-2.5" onClick={() => setOpenTopupModal(true)}>
-              Request Top Up
-            </button>
-          </div>
-        </section>
+      <div className="space-y-6">
 
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="metric-card">
-            <p className="metric-label">Current Balance</p>
-            <p className="metric-value">${currentBalance.toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-1">Available wallet funds</p>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Wallet</h2>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Track your balance, submit top-up requests, and view transaction history.
+            </p>
           </div>
-          <div className="metric-card">
-            <p className="metric-label">Pending Top Up Requests</p>
-            <p className="metric-value">{pendingRequests.length}</p>
-            <p className="text-xs text-gray-500 mt-1">${pendingAmount.toLocaleString()} awaiting approval</p>
-          </div>
-          <div className="metric-card">
-            <p className="metric-label">Account Summary</p>
-            <p className="metric-value">{transactions.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Total recorded wallet transactions</p>
-          </div>
-        </section>
+          <button
+            onClick={() => { setShowTopupModal(true); setSubmitError(null); }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Request Top Up
+          </button>
+        </div>
 
-        <section className="app-card">
-          <div className="border-b border-gray-200 dark:border-gray-700 mb-5">
-            <nav className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab("topup")}
-                className={`px-4 py-2 text-sm font-semibold rounded-t-lg ${
-                  activeTab === "topup"
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                Top Up Requests
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                className={`px-4 py-2 text-sm font-semibold rounded-t-lg ${
-                  activeTab === "history"
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"
-                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                }`}
-              >
-                Transaction History
-              </button>
+        {/* Error banner */}
+        {error && (
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex justify-between items-center">
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            <button onClick={() => { setError(null); loadWallet(); loadRequests(); loadTransactions(); }}
+              className="text-sm text-red-600 dark:text-red-400 underline ml-4">Retry</button>
+          </div>
+        )}
+
+        {/* Success banner */}
+        {submitSuccess && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex justify-between items-center">
+            <p className="text-sm text-green-700 dark:text-green-300">{submitSuccess}</p>
+            <button onClick={() => setSubmitSuccess(null)} className="text-green-500 text-xl leading-none ml-4">×</button>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Balance */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+            {loadingWallet ? (
+              <div className="animate-pulse space-y-2">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Current Balance</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                  {currency} {balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Available to spend</p>
+              </>
+            )}
+          </div>
+
+          {/* Pending */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+            {loadingRequests ? (
+              <div className="animate-pulse space-y-2">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Pending Requests</p>
+                <p className="text-3xl font-bold text-orange-500 dark:text-orange-400 mt-1">
+                  {pendingRequests.length}
+                </p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  {currency} {pendingAmount.toLocaleString()} awaiting approval
+                </p>
+              </>
+            )}
+          </div>
+
+          {/* Transactions */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-5">
+            {loadingTxns ? (
+              <div className="animate-pulse space-y-2">
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Total Transactions</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{txnTotal}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">All recorded wallet activity</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+          <div className="border-b border-gray-200 dark:border-gray-700 px-6">
+            <nav className="flex -mb-px">
+              {(["topup", "history"] as const).map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)}
+                  className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? "border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400"
+                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+                  }`}>
+                  {tab === "topup" ? "Top Up Requests" : "Transaction History"}
+                </button>
+              ))}
             </nav>
           </div>
 
-          {activeTab === "topup" && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Active Top Up Requests</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Multiple pending requests can be active at the same time.
-              </p>
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                      <th className="py-2 pr-4">Request ID</th>
-                      <th className="py-2 pr-4">Submitted</th>
-                      <th className="py-2 pr-4">Amount</th>
-                      <th className="py-2 pr-4">Receipt</th>
-                      <th className="py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pendingRequests.map((request) => (
-                      <tr key={request.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                        <td className="py-3 pr-4 font-medium">{request.id}</td>
-                        <td className="py-3 pr-4">{request.requestDate}</td>
-                        <td className="py-3 pr-4">${request.amount.toLocaleString()}</td>
-                        <td className="py-3 pr-4">{request.receiptUrl}</td>
-                        <td className="py-3">
-                          <span className={statusClasses(request.status)}>{request.status.toUpperCase()}</span>
-                        </td>
-                      </tr>
-                    ))}
-                    {pendingRequests.length === 0 && (
-                      <tr>
-                        <td className="py-6 text-center text-gray-500" colSpan={5}>
-                          No active requests.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+          <div className="p-6">
 
-          {activeTab === "history" && (
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Transaction History</h2>
-              <div className="mt-4 overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                      <th className="py-2 pr-4">Date</th>
-                      <th className="py-2 pr-4">Transaction</th>
-                      <th className="py-2 pr-4">Amount</th>
-                      <th className="py-2 pr-4">Balance Before</th>
-                      <th className="py-2 pr-4">Balance After</th>
-                      <th className="py-2">By</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((transaction) => (
-                      <tr
-                        key={transaction.id}
-                        className="border-b border-gray-100 dark:border-gray-700/60 text-gray-700 dark:text-gray-300"
-                      >
-                        <td className="py-3 pr-4">{transaction.timestamp}</td>
-                        <td className="py-3 pr-4">{transaction.description}</td>
-                        <td
-                          className={`py-3 pr-4 font-medium ${
-                            transaction.amount >= 0 ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {transaction.amount >= 0 ? "+" : ""}${transaction.amount.toLocaleString()}
-                        </td>
-                        <td className="py-3 pr-4">${transaction.balanceBefore.toLocaleString()}</td>
-                        <td className="py-3 pr-4">${transaction.balanceAfter.toLocaleString()}</td>
-                        <td className="py-3">{transaction.performedBy}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </section>
+            {/* ── TOPUP REQUESTS ───────────────────────────────────────────── */}
+            {activeTab === "topup" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">My Top Up Requests</h3>
+                  <span className="text-sm text-gray-400">{reqTotal} total</span>
+                </div>
 
-        {notice && <section className="app-card text-sm text-gray-700 dark:text-gray-300">{notice}</section>}
+                {loadingRequests ? (
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />)}
+                  </div>
+                ) : requests.length === 0 ? (
+                  <div className="text-center py-10">
+                    <svg className="w-10 h-10 mx-auto text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No top up requests yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          {["Request ID", "Date", "Amount", "Status"].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {requests.map(r => (
+                          <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td className="px-4 py-3 font-mono font-medium text-gray-900 dark:text-white">{r.id}</td>
+                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateTime(r.requestDate)}</td>
+                            <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
+                              {currency} {r.amount.toLocaleString()}
+                            </td>
+                            {/* <td className="px-4 py-3 text-gray-500 dark:text-gray-400 max-w-[160px] truncate" title={r.receiptUrl || ""}>
+                              {r.receiptUrl || <span className="italic text-gray-400">—</span>}
+                            </td> */}
+                            <td className="px-4 py-3">
+                              <span className={statusPillCls(r.status)}>{r.status.toUpperCase()}</span>
+                              {r.rejectionReason && (
+                                <p className="text-xs text-red-500 dark:text-red-400 mt-1">{r.rejectionReason}</p>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {reqTotalPages > 1 && (
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Page {reqPage} of {reqTotalPages}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => setReqPage(p => Math.max(1, p - 1))} disabled={reqPage === 1 || loadingRequests}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Previous</button>
+                      <button onClick={() => setReqPage(p => Math.min(reqTotalPages, p + 1))} disabled={reqPage === reqTotalPages || loadingRequests}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Next</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── TRANSACTION HISTORY ──────────────────────────────────────── */}
+            {activeTab === "history" && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Transaction History</h3>
+                  <span className="text-sm text-gray-400">{txnTotal} total</span>
+                </div>
+
+                {loadingTxns ? (
+                  <div className="animate-pulse space-y-3">
+                    {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded" />)}
+                  </div>
+                ) : transactions.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No transactions yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                          {["Date", "Description", "Type", "Amount", "Balance After"].map(h => (
+                            <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {transactions.map(t => (
+                          <tr key={t.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateTime(t.timestamp)}</td>
+                            <td className="px-4 py-3 text-gray-700 dark:text-gray-300 max-w-[200px] truncate" title={t.description}>{t.description}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 text-xs font-medium rounded ${
+                                t.type === "credit"
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
+                              }`}>
+                                {t.type.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className={`px-4 py-3 font-semibold ${
+                              t.type === "credit" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                            }`}>
+                              {t.type === "credit" ? "+" : "-"}{currency} {t.amount.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">
+                              {currency} {t.balanceAfter.toLocaleString()}
+                            </td>
+                            {/* <td className="px-4 py-3 text-gray-500 dark:text-gray-400">{t.processedByName || "System"}</td> */}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {txnTotalPages > 1 && (
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">Page {txnPage} of {txnTotalPages}</span>
+                    <div className="flex gap-2">
+                      <button onClick={() => setTxnPage(p => Math.max(1, p - 1))} disabled={txnPage === 1 || loadingTxns}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Previous</button>
+                      <button onClick={() => setTxnPage(p => Math.min(txnTotalPages, p + 1))} disabled={txnPage === txnTotalPages || loadingTxns}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Next</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {openTopupModal && (
+      {/* ── REQUEST TOP UP MODAL ────────────────────────────────────────────── */}
+      {showTopupModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Request Top Up</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Enter amount and attach payment receipt.
-              </p>
+            <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-700">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Request Top Up</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  Enter amount and attach your payment receipt.
+                </p>
+              </div>
+              <button onClick={() => setShowTopupModal(false)} disabled={submitting}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
             <form className="p-5 space-y-4" onSubmit={handleSubmitTopup}>
               <div>
-                <label htmlFor="topupAmount" className="block text-sm mb-1 text-gray-700 dark:text-gray-300">
-                  Amount (USD)
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Amount ({currency}) *
                 </label>
                 <input
-                  id="topupAmount"
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  value={amount}
-                  onChange={(event) => setAmount(event.target.value)}
-                  className="app-input"
-                  placeholder="500"
+                  type="number" min="1" step="any"
+                  value={amount} onChange={e => setAmount(e.target.value)}
+                  placeholder="e.g. 500" disabled={submitting}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 />
               </div>
 
               <div>
-                <label htmlFor="topupReceipt" className="block text-sm mb-1 text-gray-700 dark:text-gray-300">
-                  Upload Receipt
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Payment Receipt *
                 </label>
                 <input
-                  id="topupReceipt"
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg"
-                  onChange={(event) =>
-                    setReceiptFile(
-                      event.target.files && event.target.files[0] ? event.target.files[0] : null
-                    )
-                  }
-                  className="app-input"
+                  type="file" accept=".pdf,.png,.jpg,.jpeg,.webp" disabled={submitting}
+                  onChange={e => setReceiptFile(e.target.files?.[0] || null)}
+                  className="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 dark:file:bg-blue-900/30 dark:file:text-blue-400 hover:file:bg-blue-100 disabled:opacity-50"
                 />
                 {receiptFile && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">Selected file: {receiptFile.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">✓ {receiptFile.name}</p>
                 )}
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF, PNG, JPG, WebP — max 10MB</p>
               </div>
 
+              {submitError && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                  <p className="text-sm text-red-700 dark:text-red-300">{submitError}</p>
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setOpenTopupModal(false)}
-                  className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
-                >
+                <button type="button" onClick={() => setShowTopupModal(false)} disabled={submitting}
+                  className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
                   Cancel
                 </button>
-                <button type="submit" className="app-button-primary text-sm px-4 py-2">
-                  Submit Request
+                <button type="submit" disabled={submitting}
+                  className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2">
+                  {submitting ? (
+                    <>
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Submitting…
+                    </>
+                  ) : "Submit Request"}
                 </button>
               </div>
             </form>
