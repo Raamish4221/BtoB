@@ -72,7 +72,7 @@ export default function ProductDetailsPage() {
               <strong>${product.price}</strong>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 mt-5">
+            <div className="flex flex-wrap items-center gap-4 mt-8">
               <label className="quantity-picker">
                 <span>Qty</span>
                 <input
@@ -108,6 +108,7 @@ export default function ProductDetailsPage() {
           </div>
         </section>
 
+        {/* 
         <section className="app-card">
           <h2 className="text-lg font-semibold mb-3">Related Products</h2>
           <div className="flex flex-wrap gap-2">
@@ -118,6 +119,7 @@ export default function ProductDetailsPage() {
             ))}
           </div>
         </section>
+        */}
       </div>
     </Dashboard>
   );

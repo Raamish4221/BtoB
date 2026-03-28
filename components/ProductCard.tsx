@@ -28,7 +28,7 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <article className="product-card group">
       <Link href={`/products/${product.id}`} className="block">
-        <div className="product-visual" style={{ background: product.imageGradient }}>
+        <div className="product-visual flex items-start justify-between p-3" style={{ background: product.imageGradient }}>
           <span className="product-badge">{product.badge}</span>
           <span className="product-category">{product.category}</span>
         </div>
@@ -36,7 +36,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       <div className="product-content">
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="flex flex-col gap-1">
             <Link href={`/products/${product.id}`} className="product-name">
               {product.name}
             </Link>
@@ -52,7 +52,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           </button>
         </div>
 
-        <div className="product-meta">
+        <div className="product-meta mt-3 flex items-center justify-between">
           <span>
             {product.rating.toFixed(1)} / 5 ({product.reviews.toLocaleString()} reviews)
           </span>

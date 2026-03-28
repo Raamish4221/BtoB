@@ -287,6 +287,30 @@ body {
   box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
 }
 
+.product-visual {
+  height: 160px;
+  position: relative;
+}
+
+.product-badge {
+  background: rgba(255, 255, 255, 0.9);
+  color: #111;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  backdrop-filter: blur(4px);
+}
+
+
+.product-category {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .product-content {
   padding: 0.95rem;
   display: grid;
