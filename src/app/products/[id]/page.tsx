@@ -56,7 +56,7 @@ export default function ProductDetailsPage() {
     <Dashboard>
       <div className="app-page">
         <section className="product-details app-card">
-          <div className="product-details-visual" style={{ background: product.imageGradient }}>
+          <div className="h-48 sm:h-64 rounded-xl flex items-start p-6 mb-6" style={{ background: product.imageGradient }}>
             <span className="product-badge">{product.badge}</span>
           </div>
 
@@ -72,23 +72,24 @@ export default function ProductDetailsPage() {
               <strong>${product.price}</strong>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 mt-8">
-              <label className="quantity-picker">
-                <span>Qty</span>
+            <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 mt-8">
+              <label className="flex items-center justify-center gap-2 app-input !w-24 flex-shrink-0 self-start sm:self-auto">
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Qty</span>
                 <input
                   type="number"
                   min={1}
                   value={quantity}
                   onChange={(event) => setQuantity(Math.max(1, Number(event.target.value) || 1))}
+                  className="w-full bg-transparent outline-none text-center dark:text-white"
                 />
               </label>
 
-              <button type="button" className="app-button-primary" onClick={() => addToCart(product.id, quantity)}>
+              <button type="button" className="app-button-primary flex-1 sm:flex-none" onClick={() => addToCart(product.id, quantity)}>
                 Add to Cart
               </button>
               <button
                 type="button"
-                className="app-button-secondary"
+                className="app-button-secondary flex-1 sm:flex-none"
                 onClick={() => {
                   buyNow(product.id);
                   router.push("/cart");
@@ -98,7 +99,7 @@ export default function ProductDetailsPage() {
               </button>
               <button
                 type="button"
-                className={`favorite-button ${favorite ? "is-active" : ""}`}
+                className={`app-button-secondary flex-1 sm:flex-none flex items-center justify-center gap-2 ${favorite ? "text-red-500 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800" : ""}`}
                 onClick={() => toggleFavorite(product.id)}
               >
                 <HeartIcon filled={favorite} />
