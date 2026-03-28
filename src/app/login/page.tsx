@@ -68,15 +68,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
       <div className="max-w-md w-full space-y-8">
         {/* Logo/Header */}
-        <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-            <svg className="h-10 w-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-            </svg>
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Card Cove Admin</h2>
+        <div className="text-center flex flex-col items-center">
+          <img
+            src="/assets/card-cove-logo.png"
+            alt="Card Cove"
+            className="h-16 w-auto object-contain mb-4"
+          />
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to Card Cove</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            {requiresMFA ? "Enter your MFA code to continue" : "Sign in to access the admin portal"}
+            {requiresMFA ? "Enter your MFA code to continue" : "Sign in to your account to continue"}
           </p>
         </div>
 
