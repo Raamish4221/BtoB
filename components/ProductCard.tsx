@@ -59,11 +59,11 @@ export default function ProductCard({ product }: ProductCardProps) {
           <strong>${product.price}</strong>
         </div>
 
-        <div className="product-actions">
-          <button type="button" className="app-button-primary" onClick={() => addToCart(product.id)}>
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <button type="button" className="app-button-primary flex-1" onClick={() => addToCart(product.id)}>
             Add to Cart
           </button>
-          <Link href={`/products/${product.id}`} className="app-button-secondary">
+          <Link href={`/products/${product.id}`} className="app-button-secondary flex-1 text-center">
             View Details
           </Link>
         </div>
