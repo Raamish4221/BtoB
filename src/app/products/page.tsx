@@ -1,46 +1,239 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Dashboard from "@/components/Dashboard";
 import ProductCard from "@/components/ProductCard";
-import { products } from "@/app/data/products";
+import { api } from "@/src/app/lib/api";
+
+// Matches the Product shape expected by ProductCard
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  shortDescription: string;
+  description: string;
+  price: number;
+  rating: number;
+  reviews: number;
+  badge: string;
+  imageGradient: string;
+  // Extended fields from API (available for product detail pages)
+  brand?: string;
+  regularPrice?: number;
+  hasCustomPrice?: boolean;
+  redemptionInstructions?: string;
+  availableCodes?: number | null;
+  unlimitedStock?: boolean;
+}
+
+// Gradients cycled for products that don't have images
+const GRADIENTS = [
+  "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+  "linear-gradient(135deg, #dc2626 0%, #111827 100%)",
+  "linear-gradient(135deg, #22c55e 0%, #3b82f6 100%)",
+  "linear-gradient(135deg, #10b981 0%, #1d4ed8 100%)",
+  "linear-gradient(135deg, #0f172a 0%, #38bdf8 100%)",
+  "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)",
+  "linear-gradient(135deg, #f97316 0%, #ec4899 100%)",
+  "linear-gradient(135deg, #8b5cf6 0%, #06b6d4 100%)",
+];
+
+function mapApiProduct(p: any, index: number): Product {
+  // Pick a badge based on stock / pricing
+  let badge = "";
+  if (p.hasCustomPrice)                              badge = "Special Price";
+  else if (p.availableCodes != null && p.availableCodes < 10) badge = "Low Stock";
+  else if (p.source !== "internal")                  badge = "Live Stock";
+
+  return {
+    id:                     String(p.id),
+    name:                   p.name        || "",
+    category:               p.category    || "",
+    shortDescription:       p.description
+                              ? p.description.slice(0, 80) + (p.description.length > 80 ? "…" : "")
+                              : `${p.brand || p.category || "Digital"} product — instant delivery.`,
+    description:            p.description || "",
+    price:                  parseFloat(p.price) || 0,
+    rating:                 0,   // not stored in DB — placeholder
+    reviews:                0,   // not stored in DB — placeholder
+    badge,
+    imageGradient:          p.images?.[0]
+                              ? ""   // ProductCard can use the URL directly when set
+                              : GRADIENTS[index % GRADIENTS.length],
+    // Extended
+    brand:                  p.brand             || undefined,
+    regularPrice:           p.regularPrice      || undefined,
+    hasCustomPrice:         p.hasCustomPrice     || false,
+    redemptionInstructions: p.redemptionInstructions || undefined,
+    availableCodes:         p.availableCodes     ?? undefined,
+    unlimitedStock:         p.unlimitedStock     || false,
+  };
+}
 
 export default function ProductsPage() {
-  const [query, setQuery] = useState("");
+  const [products,    setProducts]    = useState<Product[]>([]);
+  const [categories,  setCategories]  = useState<string[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
 
-  const filteredProducts = products.filter((product) => {
-    const queryMatch =
-      query.trim().length === 0 ||
-      product.name.toLowerCase().includes(query.toLowerCase()) ||
-      product.description.toLowerCase().includes(query.toLowerCase());
-    return queryMatch;
-  });
+  // Filters
+  const [query,           setQuery]           = useState("");
+  const [filterCategory,  setFilterCategory]  = useState("all");
+
+  // Pagination
+  const [page,       setPage]       = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total,      setTotal]      = useState(0);
+  const LIMIT = 50;
+
+  // ─── Load categories once on mount ──────────────────────────────────────
+  useEffect(() => {
+    api.getClientProductCategories()
+      .then(res => setCategories(res.data || []))
+      .catch(() => {/* non-critical */});
+  }, []);
+
+  // ─── Load products ───────────────────────────────────────────────────────
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.getClientProducts({
+        search:   query.trim() || undefined,
+        category: filterCategory !== "all" ? filterCategory : undefined,
+        page,
+        limit: LIMIT,
+      });
+      setProducts((res.data || []).map((p: any, i: number) => mapApiProduct(p, i)));
+      setTotal(res.pagination?.total || 0);
+      setTotalPages(res.pagination?.totalPages || 1);
+    } catch (e: any) {
+      setError(e.message || "Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }, [query, filterCategory, page]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => { setPage(1); }, [query, filterCategory]);
+  useEffect(() => { load(); }, [load]);
+
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <Dashboard>
       <div className="app-page">
+
+        {/* Hero */}
         <section className="app-card app-hero">
           <h1 className="app-title">Products</h1>
-          <p className="app-subtitle">Select a product card to open details, then add to cart or buy now.</p>
+          <p className="app-subtitle">
+            Select a product card to open details, then add to cart or buy now.
+          </p>
         </section>
 
+        {/* Search + category filter */}
         <section className="app-card">
-          <div className="w-full">
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
             <input
               type="search"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={e => setQuery(e.target.value)}
               placeholder="Search products..."
-              className="app-input"
+              className="app-input flex-1"
             />
+            {categories.length > 0 && (
+              <select
+                value={filterCategory}
+                onChange={e => setFilterCategory(e.target.value)}
+                className="app-input sm:w-48"
+              >
+                <option value="all">All Categories</option>
+                {categories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            )}
           </div>
         </section>
 
-        <section className="product-grid">
-          {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </section>
+        {/* Error */}
+        {error && (
+          <section className="app-card">
+            <div className="flex items-center justify-between text-sm text-red-600 dark:text-red-400">
+              <span>{error}</span>
+              <button onClick={load} className="underline ml-4">Retry</button>
+            </div>
+          </section>
+        )}
+
+        {/* Loading skeleton */}
+        {loading && (
+          <section className="product-grid">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-white dark:bg-gray-800 rounded-xl shadow p-4 space-y-3">
+                <div className="h-32 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+              </div>
+            ))}
+          </section>
+        )}
+
+        {/* Products grid */}
+        {!loading && !error && (
+          <>
+            {products.length === 0 ? (
+              <section className="app-card text-center py-12">
+                <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  {query || filterCategory !== "all"
+                    ? "No products match your search."
+                    : "No products available."}
+                </p>
+              </section>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 dark:text-gray-400 px-1">
+                  {total} product{total !== 1 ? "s" : ""} available
+                </p>
+                <section className="product-grid">
+                  {products.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </section>
+              </>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <section className="flex items-center justify-between">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Page {page} of {totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 transition-colors"
+                  >
+                    Next
+                  </button>
+                </div>
+              </section>
+            )}
+          </>
+        )}
       </div>
     </Dashboard>
   );

@@ -176,7 +176,7 @@ export default function Page() {
               </Link>
             </div>
           </div>
-          <div className="app-card md:col-span-2 xl:col-span-2">
+          {/* <div className="app-card md:col-span-2 xl:col-span-2">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="metric-label">Support</p>
@@ -192,7 +192,7 @@ export default function Page() {
                 Open Support
               </button>
             </div>
-          </div>
+          </div> */}
         </section>
 
         <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">

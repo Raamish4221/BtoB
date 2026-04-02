@@ -80,113 +80,8 @@ class ApiService {
     return this.request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }, false);
   }
 
-  // ─── USERS ───────────────────────────────────────────────────────────────
-
-  async getUsers(filters?: { page?: number; limit?: number; status?: string; user_type?: string; search?: string }) {
-    const params = new URLSearchParams();
-    if (filters?.page)      params.append('page', filters.page.toString());
-    if (filters?.limit)     params.append('limit', filters.limit.toString());
-    if (filters?.status)    params.append('status', filters.status);
-    if (filters?.user_type) params.append('user_type', filters.user_type);
-    if (filters?.search)    params.append('search', filters.search);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return this.request(`/users${query}`);
-  }
-
-  async getUserById(userId: number) {
-    return this.request(`/users/${userId}`);
-  }
-
-  /**
-   * Create a new user account.
-   * - user_type: 'admin'      → only super_admin can do this (also enforced on backend)
-   * - user_type: 'b2b_client' → both super_admin and admin can do this
-   * Viewer accounts go through createViewerAccount() instead.
-   */
-  async createUser(userData: {
-    email: string;
-    password: string;
-    name: string;
-    company?: string;
-    user_type: 'admin' | 'b2b_client';
-  }) {
-    return this.request('/users', { method: 'POST', body: JSON.stringify(userData) });
-  }
-
-  async updateUser(userId: number, updates: { name?: string; company?: string; phone?: string }) {
-    return this.request(`/users/${userId}`, { method: 'PUT', body: JSON.stringify(updates) });
-  }
-
-  async deleteUser(userId: number) {
-    return this.request(`/users/${userId}`, { method: 'DELETE' });
-  }
-
-  async lockUser(userId: number, reason: string) {
-    return this.request(`/users/${userId}/lock`, { method: 'POST', body: JSON.stringify({ reason }) });
-  }
-
-  async unlockUser(userId: number) {
-    return this.request(`/users/${userId}/unlock`, { method: 'POST' });
-  }
-
-  async resetUserPassword(userId: number) {
-    return this.request(`/users/${userId}/reset-password`, { method: 'POST' });
-  }
-
-  /**
-   * Permanently block user
-   */
-  async permanentlyBlockUser(userId: number, reason: string, walletSettled?: boolean, settlementDetails?: {
-    settlementMethod: string;
-    transactionReference: string;
-    settlementNotes: string;
-    settlementDate: string;
-  }) {
-    return this.request(`/users/${userId}/permanent-block`, {
-      method: 'POST',
-      body: JSON.stringify({ reason, walletSettled, ...settlementDetails }),
-    });
-  }
-
-  /**
-   * Settle blocked user wallet
-   */
-  async settleUserWallet(
-    userId: number,
-    settlementData: {
-      settlementMethod: string;
-      transactionReference: string;
-      settlementNotes: string;
-      settlementDate: string;
-    }
-  ) {
-    return this.request(`/users/${userId}/settle-wallet`, {
-      method: 'POST',
-      body: JSON.stringify(settlementData),
-    });
-  }
-
-
-  // ─── VIEWER ACCOUNTS (under a b2b_client) ────────────────────────────────
-
-  async getViewerAccounts(userId: number) {
-    return this.request(`/users/${userId}/viewer-accounts`);
-  }
-
-  async createViewerAccount(userId: number, viewerData: { name: string; email: string; password: string }) {
-    return this.request(`/users/${userId}/viewer-accounts`, { method: 'POST', body: JSON.stringify(viewerData) });
-  }
-
-  // ─── PRODUCTS ────────────────────────────────────────────────────────────
-
-  async getUserProductAccess(userId: number) {
-    return this.request(`/users/${userId}/products`);
-  }
-
-  async updateUserProductAccess(userId: number, productAccess: Array<{ productId: number; accessType: 'allow' | 'deny' }>) {
-    return this.request(`/users/${userId}/products`, { method: 'PUT', body: JSON.stringify({ productAccess }) });
-  }
-
+  
+  
    // ============================================
   // WALLET
   // ============================================
@@ -218,126 +113,30 @@ class ApiService {
     const res = await fetch(`${this.baseURL}/wallet/topup`, { method: 'POST', headers, body: fd });
     return this.handleResponse(res);
   }
-// ============================================
-  // PRODUCTS
-  // ============================================
 
-  /** List products — optional filter by source='internal'|'carrypin' */
-  async getProducts(f?: {
-    page?: number; limit?: number; search?: string;
-    category?: string; brand?: string; status?: string;
-    source?: 'internal' | 'carrypin';
+  // ── CLIENT PORTAL ──────────────────────────────────────────────────────────
+ 
+  /** Client: get products accessible to the authenticated user, with user-specific pricing */
+  async getClientProducts(params?: {
+    search?: string; category?: string; page?: number; limit?: number;
   }) {
     const p = new URLSearchParams();
-    if (f?.page)     p.append('page',     String(f.page));
-    if (f?.limit)    p.append('limit',    String(f.limit));
-    if (f?.search)   p.append('search',   f.search);
-    if (f?.category) p.append('category', f.category);
-    if (f?.brand)    p.append('brand',    f.brand);
-    if (f?.status)   p.append('status',   f.status);
-    if (f?.source)   p.append('source',   f.source);
-    return this.request(`/products${p.toString() ? '?' + p : ''}`);
+    if (params?.search)   p.set('search',   params.search);
+    if (params?.category) p.set('category', params.category);
+    if (params?.page)     p.set('page',     String(params.page));
+    if (params?.limit)    p.set('limit',    String(params.limit));
+    return this.request(`/client/products${p.toString() ? '?' + p : ''}`);
   }
  
-  async getProductMeta(): Promise<{ success: boolean; data: { categories: string[]; brands: string[] } }> {
-    return this.request('/products/meta');
+  /** Client: get a single product by ID (only if accessible to this user) */
+  async getClientProductById(id: string | number) {
+    return this.request(`/client/products/${id}`);
   }
  
-  async getProductById(id: string | number) {
-    return this.request(`/products/${id}`);
+  /** Client: get distinct categories from accessible products */
+  async getClientProductCategories() {
+    return this.request('/client/product-categories');
   }
- 
-  /**
-   * Create an INTERNAL product (manually managed codes).
-   */
-  async createInternalProduct(d: {
-    name: string; category: string; brand: string;
-    description: string; redemptionInstructions: string;
-    price: number; discountPrice?: number; images?: string[];
-  }) {
-    return this.request('/products/internal', { method: 'POST', body: JSON.stringify(d) });
-  }
- 
-  /**
-   * Create a SUPPLIER product (real-time fulfilment, no stored codes).
-   */
-  async createSupplierProduct(d: {
-    name: string; category: string; brand: string;
-    description: string; redemptionInstructions: string;
-    price: number; costPrice?: number; faceValue?: number;
-    supplierName: string;   // 'carrypin'
-    supplierRef: string;    // SPU ID
-    supplierSkuRef?: string;// SKU/denomination ID
-    realtimePrice?: boolean;
-    syncEnabled?: boolean;
-    images?: string[];
-  }) {
-    return this.request('/products/supplier', { method: 'POST', body: JSON.stringify(d) });
-  }
- 
-  async updateProduct(id: string | number, d: Record<string, any>) {
-    return this.request(`/products/${id}`, { method: 'PUT', body: JSON.stringify(d) });
-  }
- 
-  async toggleProductStatus(id: string | number) {
-    return this.request(`/products/${id}/toggle-status`, { method: 'PATCH' });
-  }
- 
-  async deleteProduct(id: string | number) {
-    return this.request(`/products/${id}`, { method: 'DELETE' });
-  }
- 
-  /** Codes (internal products only) */
-  async getProductCodes(id: string | number, f?: { page?: number; limit?: number; status?: string }) {
-    const p = new URLSearchParams();
-    if (f?.page)   p.append('page',   String(f.page));
-    if (f?.limit)  p.append('limit',  String(f.limit));
-    if (f?.status) p.append('status', f.status!);
-    return this.request(`/products/${id}/codes${p.toString() ? '?' + p : ''}`);
-  }
- 
-  /** Upload Excel codes (internal products only) */
-  async uploadProductCodes(id: string | number, file: File) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const headers: HeadersInit = {};
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-    }
-    const res = await fetch(`${this.baseURL}/products/${id}/upload-codes`, { method: 'POST', headers, body: fd });
-    return this.handleResponse(res);
-  }
- 
-  /** Parse Excel file server-side, returns preview rows without writing to DB */
-  async importExcelPreview(file: File) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const headers: HeadersInit = {};
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('accessToken');
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-    }
-    const res = await fetch(`${this.baseURL}/products/import-excel`, { method: 'POST', headers, body: fd });
-    return this.handleResponse(res);
-  }
- 
-  /** Bulk-create internal products from parsed row array */
-  async importBulkProducts(rows: any[]) {
-    return this.request('/products/import-bulk', { method: 'POST', body: JSON.stringify({ rows }) });
-  }
- 
- 
-  async checkProductStock(id: string | number) {
-    return this.request(`/products/${id}/stock-check`);
-  }
-  async uploadProductCodesJson(id: string | number, entries: { code: string; status: string }[], fileName: string) {
-    return this.request(`/products/${id}/upload-codes-json`, {
-      method: 'POST',
-      body: JSON.stringify({ entries, fileName }),
-    });
-  }
-
 }
 
 export const api = new ApiService();
