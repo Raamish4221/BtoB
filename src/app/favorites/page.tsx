@@ -2,11 +2,22 @@
 
 import Dashboard from "@/components/Dashboard";
 import ProductCard from "@/components/ProductCard";
-import { getFavoriteProducts, useShop } from "@/app/context/ShopContext";
+import { useShop } from "@/app/context/ShopContext";
+import type { Product } from "@/app/products/page";
 
 export default function FavoritesPage() {
-  const { favoriteIds } = useShop();
-  const favoriteProducts = getFavoriteProducts(favoriteIds);
+  const { favoriteItems } = useShop();
+
+  // Cast stored snapshots to Product — CartProduct now includes all required fields
+  const favoriteProducts = favoriteItems
+    .filter(f => f.product)
+    .map(f => ({
+      ...f.product!,
+      shortDescription: f.product!.shortDescription ?? "",
+      description:      f.product!.description      ?? "",
+      rating:           f.product!.rating            ?? 0,
+      reviews:          f.product!.reviews           ?? 0,
+    } as Product));
 
   return (
     <Dashboard>
@@ -19,12 +30,14 @@ export default function FavoritesPage() {
         {favoriteProducts.length === 0 ? (
           <section className="app-card">
             <p className="text-sm text-gray-600 dark:text-gray-300">
-              No favorite products yet. Click the heart icon on any product to add it here.
+              {favoriteItems.length > 0
+                ? "Your favorites were saved before product data was available. Browse products and re-add them."
+                : "No favorite products yet. Click the heart icon on any product to add it here."}
             </p>
           </section>
         ) : (
           <section className="product-grid">
-            {favoriteProducts.map((product) => (
+            {favoriteProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))}
           </section>

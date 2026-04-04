@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 import Dashboard from "@/components/Dashboard";
-import { getProductById } from "@/app/data/products";
 import { useShop } from "@/app/context/ShopContext";
 
 export default function CartPage() {
-  const { cartItems, cartTotal, updateCartQuantity, removeFromCart, clearCart } = useShop();
+  const {
+    cartItems,
+    cartTotal,
+    updateCartQuantity,
+    removeFromCart,
+    clearCart,
+    getCartProduct,
+  } = useShop();
 
   return (
     <Dashboard>
@@ -27,23 +33,33 @@ export default function CartPage() {
           ) : (
             <>
               <div className="space-y-3">
-                {cartItems.map((item) => {
-                  const product = getProductById(item.productId);
-                  if (!product) return null;
-                  const subtotal = product.price * item.quantity;
+                {cartItems.map(item => {
+                  const product = getCartProduct(item.productId);
+                  const subtotal = product
+                    ? (product.price * item.quantity).toFixed(2)
+                    : "—";
+
                   return (
                     <div key={item.productId} className="cart-item">
                       <div>
-                        <p className="font-semibold">{product.name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{product.category}</p>
+                        <p className="font-semibold">
+                          {product?.name ?? item.productId}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {product?.category ?? ""}
+                        </p>
                       </div>
+
                       <div className="cart-item-actions">
                         <input
                           type="number"
                           min={1}
                           value={item.quantity}
-                          onChange={(event) =>
-                            updateCartQuantity(item.productId, Math.max(1, Number(event.target.value) || 1))
+                          onChange={e =>
+                            updateCartQuantity(
+                              item.productId,
+                              Math.max(1, Number(e.target.value) || 1)
+                            )
                           }
                         />
                         <p className="font-semibold">${subtotal}</p>
@@ -62,10 +78,14 @@ export default function CartPage() {
 
               <div className="cart-footer">
                 <p>
-                  Total: <strong>${cartTotal}</strong>
+                  Total: <strong>${cartTotal.toFixed(2)}</strong>
                 </p>
                 <div className="flex gap-2">
-                  <button type="button" className="app-button-secondary" onClick={clearCart}>
+                  <button
+                    type="button"
+                    className="app-button-secondary"
+                    onClick={clearCart}
+                  >
                     Clear Cart
                   </button>
                   <button type="button" className="app-button-primary">

@@ -1,6 +1,6 @@
 // lib/api.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://b64e-2400-adc1-1d2-1800-7c79-239d-b3cb-10fe.ngrok-free.app';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 const API_VERSION = 'v1';
 
 class ApiService {
@@ -141,6 +141,43 @@ class ApiService {
   async getClientProductCategories() {
     return this.request('/client/product-categories');
   }
+  async getClientDashboard() {
+    return this.request('/client/dashboard');
+  }
+ 
+  /** Client: paginated order history */
+  async getClientOrders(params?: { status?: string; page?: number; limit?: number }) {
+    const p = new URLSearchParams();
+    if (params?.status) p.set('status', params.status);
+    if (params?.page)   p.set('page',   String(params.page));
+    if (params?.limit)  p.set('limit',  String(params.limit));
+    return this.request(`/client/orders${p.toString() ? '?' + p : ''}`);
+  }
+ 
+  /** Client: list support tickets */
+  async getClientTickets(page = 1, limit = 20) {
+    return this.request(`/client/tickets?page=${page}&limit=${limit}`);
+  }
+ 
+  /** Client: create support ticket — multipart/form-data (attachment optional) */
+  async createSupportTicket(title: string, description: string, attachment: File | null) {
+    const fd = new FormData();
+    fd.append('title', title);
+    fd.append('description', description);
+    if (attachment) fd.append('attachment', attachment);
+ 
+    const headers: HeadersInit = {};
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('accessToken');
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch(`${this.baseURL}/client/tickets`, { method: 'POST', headers, body: fd });
+    return this.handleResponse(res);
+  }
+ 
+
+ 
+  
 }
 
 export const api = new ApiService();
