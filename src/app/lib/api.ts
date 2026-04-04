@@ -1,6 +1,6 @@
 // lib/api.ts
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://b64e-2400-adc1-1d2-1800-7c79-239d-b3cb-10fe.ngrok-free.app';
 const API_VERSION = 'v1';
 
 class ApiService {
@@ -25,9 +25,9 @@ class ApiService {
       if (response.status === 401 && data.message?.includes('expired')) {
         // const refreshed = await this.refreshToken();
         // if (!refreshed && typeof window !== 'undefined') {
-          localStorage.clear();
-          window.location.href = '/login';
-        
+        localStorage.clear();
+        window.location.href = '/login';
+
       }
       throw new Error(data.message || 'API request failed');
     }
@@ -38,7 +38,11 @@ class ApiService {
     const url = `${this.baseURL}${endpoint}`;
     const headers = this.getHeaders(includeAuth);
     try {
-      const response = await fetch(url, { ...options, headers: { ...headers, ...options.headers } });
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        credentials: 'include' // 🔥 critical
+      });
       return await this.handleResponse(response);
     } catch (error) {
       console.error('API Error:', error);
@@ -80,31 +84,31 @@ class ApiService {
     return this.request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }, false);
   }
 
-  
-  
-   // ============================================
+
+
+  // ============================================
   // WALLET
   // ============================================
- 
+
   // ── CLIENT WALLET ──────────────────────────────────────────────────────────
-  async getWalletBalance()  { return this.request('/wallet/balance'); }
- 
+  async getWalletBalance() { return this.request('/wallet/balance'); }
+
   async getWalletTransactions(page = 1, limit = 20) {
     return this.request(`/wallet/transactions?page=${page}&limit=${limit}`);
   }
- 
+
   async getMyTopupRequests(status?: string, page = 1, limit = 20) {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) params.set('status', status);
     return this.request(`/wallet/my-topup-requests?${params}`);
   }
- 
+
   /** Submit topup request — sends multipart/form-data so the receipt file is included */
   async requestTopup(amount: number, receiptFile: File | null) {
     const fd = new FormData();
     fd.append('amount', String(amount));
     if (receiptFile) fd.append('receipt', receiptFile);
- 
+
     const headers: HeadersInit = {};
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('accessToken');
@@ -115,24 +119,24 @@ class ApiService {
   }
 
   // ── CLIENT PORTAL ──────────────────────────────────────────────────────────
- 
+
   /** Client: get products accessible to the authenticated user, with user-specific pricing */
   async getClientProducts(params?: {
     search?: string; category?: string; page?: number; limit?: number;
   }) {
     const p = new URLSearchParams();
-    if (params?.search)   p.set('search',   params.search);
+    if (params?.search) p.set('search', params.search);
     if (params?.category) p.set('category', params.category);
-    if (params?.page)     p.set('page',     String(params.page));
-    if (params?.limit)    p.set('limit',    String(params.limit));
+    if (params?.page) p.set('page', String(params.page));
+    if (params?.limit) p.set('limit', String(params.limit));
     return this.request(`/client/products${p.toString() ? '?' + p : ''}`);
   }
- 
+
   /** Client: get a single product by ID (only if accessible to this user) */
   async getClientProductById(id: string | number) {
     return this.request(`/client/products/${id}`);
   }
- 
+
   /** Client: get distinct categories from accessible products */
   async getClientProductCategories() {
     return this.request('/client/product-categories');
