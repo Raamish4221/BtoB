@@ -175,7 +175,29 @@ class ApiService {
     return this.handleResponse(res);
   }
  
-
+// ── ORDERS (CLIENT) ────────────────────────────────────────────────────────
+ 
+  /** Place an order from cart items */
+  async placeOrder(items: { productId: string; skuId?: string; quantity: number }[], notes?: string) {
+    return this.request('/orders', {
+      method: 'POST',
+      body: JSON.stringify({ items, notes }),
+    });
+  }
+ 
+  /** Client: paginated order history */
+  async getMyOrders(params?: { status?: string; page?: number; limit?: number }) {
+    const p = new URLSearchParams();
+    if (params?.status) p.set('status', params.status);
+    if (params?.page)   p.set('page',   String(params.page));
+    if (params?.limit)  p.set('limit',  String(params.limit));
+    return this.request(`/orders${p.toString() ? '?' + p : ''}`);
+  }
+ 
+  /** Client: single order detail */
+  async getMyOrderById(id: string | number) {
+    return this.request(`/orders/${id}`);
+  }
  
   
 }

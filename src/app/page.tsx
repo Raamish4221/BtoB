@@ -1,146 +1,181 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Dashboard from "@/components/Dashboard";
-import { getFavoriteProducts, useShop } from "@/app/context/ShopContext";
+import { useShop } from "@/app/context/ShopContext";
+import { api } from "@/src/app/lib/api";
 
-interface DashboardTransaction {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface DashboardData {
+  wallet:              { balance: number; currency: string };
+  pendingTopups:       number;
+  recentTopups:        TopupRow[];
+  pendingOrders:       OrderRow[];
+  recentTransactions:  TxnRow[];
+  recentTickets:       TicketRow[];
+}
+
+interface TopupRow {
   id: string;
-  date: string;
-  description: string;
   amount: number;
-  status: "Completed" | "Pending" | "Failed";
-}
-
-interface ProductStat {
-  id: string;
-  name: string;
-  category: string;
-  sold: number;
-}
-
-interface TopupRequestRow {
-  id: string;
+  currency: string;
+  receiptUrl: string | null;
+  status: string;
   requestedAt: string;
-  amount: number;
-  method: string;
-  status: "Pending" | "Approved" | "Rejected";
+  reviewedAt: string | null;
+  rejectionReason: string | null;
 }
 
-interface PendingOrderRow {
+interface OrderRow {
   id: string;
-  createdAt: string;
+  orderNumber: string;
+  status: string;
+  total: number;
+  currency: string;
   product: string;
   quantity: number;
-  total: number;
-  status: "Pending" | "Processing";
-}
-
-interface SupportTicket {
-  id: string;
-  title: string;
-  description: string;
-  attachmentName: string;
   createdAt: string;
-  status: "Pending" | "In Progress" | "Resolved";
 }
 
-const recentTransactions: DashboardTransaction[] = [
-  { id: "TXN-1005", date: "2026-02-26 10:12", description: "Top-up approved", amount: 1200, status: "Completed" },
-  { id: "TXN-1004", date: "2026-02-25 17:22", description: "Order #ORD-3002", amount: -280, status: "Completed" },
-  { id: "TXN-1003", date: "2026-02-25 09:10", description: "Refund #RF-90", amount: 40, status: "Completed" },
-  { id: "TXN-1002", date: "2026-02-24 15:01", description: "Top-up request", amount: 500, status: "Pending" },
-  { id: "TXN-1001", date: "2026-02-23 11:44", description: "Order #ORD-2998", amount: -120, status: "Completed" },
-];
+interface TxnRow {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  timestamp: string;
+}
 
-const bestSellingProducts: ProductStat[] = [
-  { id: "P1", name: "Amazon Gift Card", category: "Gift Cards", sold: 480 },
-  { id: "P2", name: "Netflix Premium", category: "Subscriptions", sold: 365 },
-  { id: "P3", name: "Google Play Voucher", category: "Gift Cards", sold: 290 },
-  { id: "P4", name: "Spotify Annual", category: "Subscriptions", sold: 205 },
-];
+interface TicketRow {
+  id: string;
+  ticketNumber: string;
+  title: string;
+  attachmentName: string | null;
+  status: string;
+  createdAt: string;
+}
 
-const topupRequests: TopupRequestRow[] = [
-  { id: "REQ-1210", requestedAt: "2026-02-25 09:40", amount: 900, method: "Bank Transfer", status: "Pending" },
-  { id: "REQ-1209", requestedAt: "2026-02-24 14:20", amount: 450, method: "UPI", status: "Pending" },
-  { id: "REQ-1208", requestedAt: "2026-02-23 12:10", amount: 500, method: "Bank Transfer", status: "Approved" },
-];
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const pendingOrdersTable: PendingOrderRow[] = [
-  { id: "ORD-3002", createdAt: "2026-02-25 17:22", product: "Netflix Premium", quantity: 4, total: 280, status: "Pending" },
-  { id: "ORD-3001", createdAt: "2026-02-25 10:04", product: "Amazon Gift Card", quantity: 10, total: 500, status: "Processing" },
-  { id: "ORD-3000", createdAt: "2026-02-24 16:18", product: "Spotify Annual", quantity: 2, total: 120, status: "Pending" },
-];
+function fmt(raw: string | null | undefined) {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? raw : d.toLocaleString(undefined, {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: true,
+  });
+}
 
-function statusBadge(status: DashboardTransaction["status"]) {
-  if (status === "Completed") return "status-pill approved";
-  if (status === "Failed") return "status-pill rejected";
+function statusPill(status: string) {
+  const s = status.toLowerCase();
+  if (["approved","completed","resolved"].includes(s))
+    return "status-pill approved";
+  if (["rejected","failed","cancelled"].includes(s))
+    return "status-pill rejected";
   return "status-pill pending";
 }
 
-function queueStatusBadge(status: TopupRequestRow["status"] | PendingOrderRow["status"]) {
-  if (status === "Approved") return "status-pill approved";
-  if (status === "Rejected") return "status-pill rejected";
-  return "status-pill pending";
-}
-
-function ticketStatusBadge(status: SupportTicket["status"]) {
-  if (status === "Resolved") return "status-pill approved";
-  if (status === "In Progress") return "status-pill rejected";
-  return "status-pill pending";
-}
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Page() {
-  const { cartCount, favoriteCount, favoriteIds } = useShop();
-  const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
-  const [supportTitle, setSupportTitle] = useState("");
-  const [supportDescription, setSupportDescription] = useState("");
-  const [supportAttachment, setSupportAttachment] = useState<File | null>(null);
-  const [supportTickets, setSupportTickets] = useState<SupportTicket[]>([]);
+  const { cartCount, favoriteCount } = useShop();
 
-  const favorites = getFavoriteProducts(favoriteIds);
-  const lastLogin = "February 26, 2026 09:31 AM";
-  const pendingTopups = topupRequests.filter((req) => req.status === "Pending").length;
-  const pendingOrders = pendingOrdersTable.filter((order) => order.status === "Pending").length;
-  const walletBalance = 2850;
+  const [data,        setData]        = useState<DashboardData | null>(null);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
 
-  const handleSupportSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Support ticket modal
+  const [ticketModal,       setTicketModal]       = useState(false);
+  const [ticketTitle,       setTicketTitle]       = useState("");
+  const [ticketDesc,        setTicketDesc]        = useState("");
+  const [ticketAttachment,  setTicketAttachment]  = useState<File | null>(null);
+  const [ticketSubmitting,  setTicketSubmitting]  = useState(false);
+  const [ticketError,       setTicketError]       = useState<string | null>(null);
+
+  // ─── Load dashboard ────────────────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    api.getClientDashboard()
+      .then(res => setData(res.data))
+      .catch(e  => setError(e.message || "Failed to load dashboard"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ─── Submit support ticket ─────────────────────────────────────────────────
+  const handleTicketSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const ticketId = `TKT-${Math.floor(100000 + Math.random() * 900000)}`;
-
-    const newTicket: SupportTicket = {
-      id: ticketId,
-      title: supportTitle.trim(),
-      description: supportDescription.trim(),
-      attachmentName: supportAttachment?.name || "No attachment",
-      createdAt: new Date().toLocaleString(),
-      status: "Pending",
-    };
-
-    setSupportTickets((prev) => [newTicket, ...prev]);
-    setSupportTitle("");
-    setSupportDescription("");
-    setSupportAttachment(null);
-    setIsSupportModalOpen(false);
+    setTicketError(null);
+    setTicketSubmitting(true);
+    try {
+      const res = await api.createSupportTicket(ticketTitle, ticketDesc, ticketAttachment);
+      // Prepend new ticket to local list
+      setData(prev => prev ? {
+        ...prev,
+        recentTickets: [res.data, ...prev.recentTickets].slice(0, 5),
+      } : prev);
+      setTicketTitle("");
+      setTicketDesc("");
+      setTicketAttachment(null);
+      setTicketModal(false);
+    } catch (e: any) {
+      setTicketError(e.message || "Failed to create ticket");
+    } finally {
+      setTicketSubmitting(false);
+    }
   };
+
+  // ─── Loading skeleton ──────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <Dashboard>
+        <div className="app-page animate-pulse space-y-4">
+          <div className="app-card h-24 bg-gray-100 dark:bg-gray-800" />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="metric-card h-20 bg-gray-100 dark:bg-gray-800" />
+            ))}
+          </div>
+          <div className="app-card h-48 bg-gray-100 dark:bg-gray-800" />
+        </div>
+      </Dashboard>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <Dashboard>
+        <div className="app-page">
+          <div className="app-card text-center py-8">
+            <p className="text-sm text-red-600 dark:text-red-400">{error || "No data"}</p>
+            <button onClick={() => window.location.reload()} className="app-button-primary mt-3">
+              Retry
+            </button>
+          </div>
+        </div>
+      </Dashboard>
+    );
+  }
+
+  const { wallet, pendingTopups, recentTopups, pendingOrders, recentTransactions, recentTickets } = data;
 
   return (
     <Dashboard>
       <div className="app-page">
+
+        {/* Hero */}
         <section className="app-card app-hero">
           <h1 className="app-title">Client Dashboard</h1>
           <p className="app-subtitle">Operational snapshot for wallet, orders, and products.</p>
-          <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
-            Last login: <span className="font-semibold">{lastLogin}</span>
-          </p>
         </section>
 
+        {/* Metric cards */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="metric-card">
             <p className="metric-label">Wallet Balance</p>
-            <p className="metric-value">${walletBalance.toLocaleString()}</p>
+            <p className="metric-value">
+              {wallet.currency} {wallet.balance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </p>
           </div>
           <div className="metric-card">
             <p className="metric-label">Pending Top Up Requests</p>
@@ -148,10 +183,11 @@ export default function Page() {
           </div>
           <div className="metric-card">
             <p className="metric-label">Pending Orders</p>
-            <p className="metric-value">{pendingOrders}</p>
+            <p className="metric-value">{pendingOrders.length}</p>
           </div>
         </section>
 
+        {/* Cart / Favorites */}
         <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
           <div className="app-card">
             <p className="metric-label">Cart Items</p>
@@ -161,182 +197,142 @@ export default function Page() {
             <p className="metric-label">Favorites</p>
             <p className="text-2xl font-bold mt-1">{favoriteCount}</p>
           </div>
-          <div className="app-card md:col-span-2 xl:col-span-2">
+          <div className="app-card md:col-span-2">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="metric-label">Favorite Products</p>
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-                  {favorites.length === 0
-                    ? "No favorites yet."
-                    : favorites.slice(0, 3).map((item) => item.name).join(", ")}
-                </p>
+                <p className="metric-label">Quick Actions</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Browse products or manage your wallet.</p>
               </div>
-              <Link href="/favorites" className="app-button-secondary">
-                Open Favorites
-              </Link>
+              <div className="flex gap-2">
+                <Link href="/favorites" className="app-button-secondary">Favorites</Link>
+                <Link href="/wallet"    className="app-button-primary">Wallet</Link>
+              </div>
             </div>
           </div>
-
         </section>
 
+        {/* Topup requests + Pending orders */}
         <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           <div className="app-card">
-            <h2 className="text-lg font-semibold mb-3">Topup Requests</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                    <th className="py-2 pr-4">Request ID</th>
-                    <th className="py-2 pr-4">Requested At</th>
-                    <th className="py-2 pr-4">Method</th>
-                    <th className="py-2 pr-4">Amount</th>
-                    <th className="py-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topupRequests.map((request) => (
-                    <tr key={request.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                      <td className="py-3 pr-4 font-medium">{request.id}</td>
-                      <td className="py-3 pr-4">{request.requestedAt}</td>
-                      <td className="py-3 pr-4">{request.method}</td>
-                      <td className="py-3 pr-4">${request.amount}</td>
-                      <td className="py-3">
-                        <span className={queueStatusBadge(request.status)}>{request.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Recent Topup Requests</h2>
+              <Link href="/wallet" className="app-button-secondary text-xs">View All</Link>
             </div>
+            {recentTopups.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No topup requests yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
+                      <th className="py-2 pr-4">Request ID</th>
+                      <th className="py-2 pr-4">Requested At</th>
+                      <th className="py-2 pr-4">Amount</th>
+                      <th className="py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentTopups.map(r => (
+                      <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                        <td className="py-3 pr-4 font-medium">#{r.id}</td>
+                        <td className="py-3 pr-4">{fmt(r.requestedAt)}</td>
+                        <td className="py-3 pr-4">{r.currency} {r.amount.toLocaleString()}</td>
+                        <td className="py-3">
+                          <span className={statusPill(r.status)}>{r.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           <div className="app-card">
-            <h2 className="text-lg font-semibold mb-3">Pending Orders</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                    <th className="py-2 pr-4">Order ID</th>
-                    <th className="py-2 pr-4">Created At</th>
-                    <th className="py-2 pr-4">Product</th>
-                    <th className="py-2 pr-4">Qty</th>
-                    <th className="py-2 pr-4">Total</th>
-                    <th className="py-2">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingOrdersTable.map((order) => (
-                    <tr key={order.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                      <td className="py-3 pr-4 font-medium">{order.id}</td>
-                      <td className="py-3 pr-4">{order.createdAt}</td>
-                      <td className="py-3 pr-4">{order.product}</td>
-                      <td className="py-3 pr-4">{order.quantity}</td>
-                      <td className="py-3 pr-4">${order.total}</td>
-                      <td className="py-3">
-                        <span className={queueStatusBadge(order.status)}>{order.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold">Pending Orders</h2>
+              <Link href="/orders" className="app-button-secondary text-xs">View All</Link>
             </div>
+            {pendingOrders.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">No pending orders.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
+                      <th className="py-2 pr-4">Order</th>
+                      <th className="py-2 pr-4">Product</th>
+                      <th className="py-2 pr-4">Qty</th>
+                      <th className="py-2 pr-4">Total</th>
+                      <th className="py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingOrders.map(o => (
+                      <tr key={o.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                        <td className="py-3 pr-4 font-medium">{o.orderNumber}</td>
+                        <td className="py-3 pr-4 max-w-[140px] truncate" title={o.product}>{o.product}</td>
+                        <td className="py-3 pr-4">{o.quantity}</td>
+                        <td className="py-3 pr-4">${o.total.toLocaleString()}</td>
+                        <td className="py-3">
+                          <span className={statusPill(o.status)}>{o.status}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </section>
 
-        <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          <div className="app-card">
-            <h2 className="text-lg font-semibold mb-3">Best-Selling Products</h2>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                    <th className="py-2 pr-4">Product</th>
-                    <th className="py-2 pr-4">Category</th>
-                    <th className="py-2 pr-4">Units Sold</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bestSellingProducts.map((product) => (
-                    <tr key={product.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                      <td className="py-3 pr-4 font-medium">{product.name}</td>
-                      <td className="py-3 pr-4">{product.category}</td>
-                      <td className="py-3 pr-4">{product.sold}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="app-card">
-            <h2 className="text-lg font-semibold mb-3">Reorder Shortcut</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Link href="/products/amazon-gift-card" className="app-button-primary text-center">
-                Reorder Amazon Gift Card
-              </Link>
-              <Link href="/products/netflix-premium" className="app-button-primary text-center">
-                Reorder Netflix Premium
-              </Link>
-              <Link href="/products/google-play-voucher" className="app-button-primary text-center">
-                Reorder Google Play Voucher
-              </Link>
-              <Link href="/products/spotify-annual" className="app-button-primary text-center">
-                Reorder Spotify Annual
-              </Link>
-            </div>
-          </div>
-        </section>
-
+        {/* Recent transactions */}
         <section className="app-card">
           <div className="flex items-center justify-between gap-3 mb-3">
-            <h2 className="text-lg font-semibold">Recent Transactions (Last 5)</h2>
-            <Link href="/products" className="app-button-secondary">
-              Browse Products
-            </Link>
+            <h2 className="text-lg font-semibold">Recent Transactions</h2>
+            <Link href="/wallet" className="app-button-secondary">View All</Link>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Reference</th>
-                  <th className="py-2 pr-4">Description</th>
-                  <th className="py-2 pr-4">Amount</th>
-                  <th className="py-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTransactions.map((txn) => (
-                  <tr key={txn.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                    <td className="py-3 pr-4">{txn.date}</td>
-                    <td className="py-3 pr-4">{txn.id}</td>
-                    <td className="py-3 pr-4">{txn.description}</td>
-                    <td className={`py-3 pr-4 font-medium ${txn.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {txn.amount >= 0 ? "+" : ""}${Math.abs(txn.amount)}
-                    </td>
-                    <td className="py-3">
-                      <span className={statusBadge(txn.status)}>{txn.status}</span>
-                    </td>
+          {recentTransactions.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">No transactions yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Reference</th>
+                    <th className="py-2 pr-4">Description</th>
+                    <th className="py-2">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {recentTransactions.map(t => (
+                    <tr key={t.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                      <td className="py-3 pr-4">{fmt(t.timestamp)}</td>
+                      <td className="py-3 pr-4 font-medium">#{t.id}</td>
+                      <td className="py-3 pr-4">{t.description}</td>
+                      <td className={`py-3 font-medium ${t.amount >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {t.amount >= 0 ? "+" : ""}${Math.abs(t.amount).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
+        {/* Support tickets */}
         <section className="app-card">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="text-lg font-semibold">Support Tickets</h2>
-            <button
-              type="button"
-              className="app-button-secondary"
-              onClick={() => setIsSupportModalOpen(true)}
-            >
+            <button type="button" className="app-button-secondary"
+              onClick={() => { setTicketModal(true); setTicketError(null); }}>
               Generate Ticket
             </button>
           </div>
 
-          {supportTickets.length === 0 ? (
+          {recentTickets.length === 0 ? (
             <p className="text-sm text-gray-600 dark:text-gray-300">
               No tickets yet. Click &quot;Generate Ticket&quot; to create one.
             </p>
@@ -353,14 +349,14 @@ export default function Page() {
                   </tr>
                 </thead>
                 <tbody>
-                  {supportTickets.map((ticket) => (
-                    <tr key={ticket.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                      <td className="py-3 pr-4 font-medium">{ticket.id}</td>
-                      <td className="py-3 pr-4">{ticket.title}</td>
-                      <td className="py-3 pr-4">{ticket.attachmentName}</td>
-                      <td className="py-3 pr-4">{ticket.createdAt}</td>
+                  {recentTickets.map(t => (
+                    <tr key={t.id} className="border-b border-gray-100 dark:border-gray-700/60">
+                      <td className="py-3 pr-4 font-medium">{t.ticketNumber}</td>
+                      <td className="py-3 pr-4">{t.title}</td>
+                      <td className="py-3 pr-4 text-gray-500">{t.attachmentName || "No attachment"}</td>
+                      <td className="py-3 pr-4">{fmt(t.createdAt)}</td>
                       <td className="py-3">
-                        <span className={ticketStatusBadge(ticket.status)}>{ticket.status}</span>
+                        <span className={statusPill(t.status)}>{t.status.replace("_", " ")}</span>
                       </td>
                     </tr>
                   ))}
@@ -371,67 +367,59 @@ export default function Page() {
         </section>
       </div>
 
-      {isSupportModalOpen && (
+      {/* ── Support ticket modal ────────────────────────────────────────────── */}
+      {ticketModal && (
         <div className="fixed inset-0 z-50 bg-black/45 flex items-center justify-center p-4">
           <div className="w-full max-w-2xl app-card">
             <div className="flex items-center justify-between gap-3 mb-4">
               <h2 className="text-lg font-semibold">Create Support Ticket</h2>
-              <button
-                type="button"
-                onClick={() => setIsSupportModalOpen(false)}
-                className="app-button-secondary"
-              >
+              <button type="button" className="app-button-secondary" disabled={ticketSubmitting}
+                onClick={() => setTicketModal(false)}>
                 Close
               </button>
             </div>
 
-            <form className="grid gap-3" onSubmit={handleSupportSubmit}>
+            {ticketError && (
+              <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-700 dark:text-red-300">{ticketError}</p>
+              </div>
+            )}
+
+            <form className="grid gap-3" onSubmit={handleTicketSubmit}>
               <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
-                <input
-                  type="text"
-                  required
-                  value={supportTitle}
-                  onChange={(e) => setSupportTitle(e.target.value)}
-                  className="app-input"
-                  placeholder="Short issue title"
-                />
+                <label className="block text-sm font-medium mb-1">Title *</label>
+                <input type="text" required value={ticketTitle}
+                  onChange={e => setTicketTitle(e.target.value)}
+                  className="app-input" placeholder="Short issue title" disabled={ticketSubmitting} />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Attach Image or File</label>
-                <input
-                  type="file"
-                  onChange={(e) => setSupportAttachment(e.target.files?.[0] || null)}
+                <label className="block text-sm font-medium mb-1">Attach File (optional)</label>
+                <input type="file"
+                  onChange={e => setTicketAttachment(e.target.files?.[0] || null)}
                   className="app-input"
                   accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
-                />
-                {supportAttachment && (
-                  <p className="text-xs text-gray-500 mt-1">Selected: {supportAttachment.name}</p>
+                  disabled={ticketSubmitting} />
+                {ticketAttachment && (
+                  <p className="text-xs text-gray-500 mt-1">Selected: {ticketAttachment.name}</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Problem Description</label>
-                <textarea
-                  required
-                  value={supportDescription}
-                  onChange={(e) => setSupportDescription(e.target.value)}
-                  className="app-input min-h-32"
-                  placeholder="Describe the issue in detail"
-                />
+                <label className="block text-sm font-medium mb-1">Description *</label>
+                <textarea required value={ticketDesc}
+                  onChange={e => setTicketDesc(e.target.value)}
+                  className="app-input min-h-32" placeholder="Describe the issue in detail"
+                  disabled={ticketSubmitting} />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsSupportModalOpen(false)}
-                  className="app-button-secondary"
-                >
+                <button type="button" className="app-button-secondary" disabled={ticketSubmitting}
+                  onClick={() => setTicketModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" className="app-button-primary">
-                  Submit Ticket
+                <button type="submit" className="app-button-primary" disabled={ticketSubmitting}>
+                  {ticketSubmitting ? "Submitting…" : "Submit Ticket"}
                 </button>
               </div>
             </form>
