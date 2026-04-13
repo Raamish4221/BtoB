@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { products } from "@/app/data/products";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +57,12 @@ interface ShopContextValue {
 const SHOP_STORAGE_KEY = "b2b-shop-state-v2";
 
 const ShopContext = createContext<ShopContextValue | undefined>(undefined);
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+export function getFavoriteProducts(ids: string[]) {
+  return products.filter(p => ids.includes(p.id));
+}
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 

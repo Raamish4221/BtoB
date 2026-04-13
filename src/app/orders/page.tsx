@@ -273,15 +273,13 @@ export default function ClientOrdersPage() {
 
   return (
     <Dashboard>
-      <div className="space-y-6">
+      <div className="app-page">
 
-        {/* Header */}
-        <div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white">My Orders</h2>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Track your order history and delivery status.
-          </p>
-        </div>
+        {/* Hero */}
+        <section className="app-card app-hero">
+          <h1 className="app-title">My Orders</h1>
+          <p className="app-subtitle">Track your order history and delivery status.</p>
+        </section>
 
         {/* Error */}
         {error && (

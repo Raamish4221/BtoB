@@ -202,26 +202,26 @@ export default function WalletPage() {
 
   return (
     <Dashboard>
-      <div className="space-y-6">
+      <div className="app-page">
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Wallet</h2>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Track your balance, submit top-up requests, and view transaction history.
-            </p>
+        {/* Hero */}
+        <section className="app-card app-hero">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="app-title">Wallet</h1>
+              <p className="app-subtitle">Track your balance, submit top-up requests, and view transaction history.</p>
+            </div>
+            <button
+              onClick={() => { setShowTopupModal(true); setSubmitError(null); }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Request Top Up
+            </button>
           </div>
-          <button
-            onClick={() => { setShowTopupModal(true); setSubmitError(null); }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Request Top Up
-          </button>
-        </div>
+        </section>
 
         {/* Error banner */}
         {error && (

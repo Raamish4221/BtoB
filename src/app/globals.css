@@ -212,6 +212,48 @@ body {
 }
 
 /* -----------------------------
+   CART
+----------------------------- */
+
+.cart-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--surface-border);
+  gap: 1rem;
+}
+
+.cart-item:last-child {
+  border-bottom: none;
+}
+
+.cart-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.cart-item-actions input[type="number"] {
+  width: 60px;
+  padding: 0.4rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.5rem;
+  text-align: center;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.cart-footer {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 2px solid var(--surface-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* -----------------------------
    LOGIN
 ----------------------------- */
 
@@ -220,20 +262,33 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(
-    135deg,
-    #e6f7fb 0%,
-    #c9f0f8 100%
-  );
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   padding: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-page::before {
+  content: "";
+  position: absolute;
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(circle at 30% 30%, rgba(55, 169, 201, 0.15) 0%, transparent 50%),
+              radial-gradient(circle at 70% 70%, rgba(103, 199, 216, 0.15) 0%, transparent 50%);
+  z-index: 1;
 }
 
 .login-card {
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  border-radius: 0.75rem;
-  box-shadow: 0 20px 28px rgba(15, 23, 42, 0.12);
-  padding: 2rem;
+  background: rgba(255, 255, 255, 0.05); /* Transparent glass base */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle white border */
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  padding: 2.5rem;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  width: 100%;
+  max-width: 420px;
+  z-index: 10;
 }
 
 /* -----------------------------
@@ -388,5 +443,14 @@ body {
 @media (max-width: 900px) {
   .product-actions {
     flex-direction: column;
+  }
+  .cart-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .cart-item-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 0.5rem;
   }
 }

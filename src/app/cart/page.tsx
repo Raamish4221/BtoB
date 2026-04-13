@@ -296,7 +296,7 @@ export default function CartPage() {
                         <p className="font-semibold">${subtotal}</p>
                         <button
                           type="button"
-                          className="text-sm text-red-600 hover:text-red-700"
+                          className="px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
                           onClick={() => removeFromCart(item.productId)}
                         >
                           Remove

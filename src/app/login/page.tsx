@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
 export default function LoginPage() {
-    const { setUser } = useAuth();
+  const { setUser } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: "",
@@ -20,7 +20,6 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
 
     try {
       const response = await fetch(
@@ -51,7 +50,6 @@ export default function LoginPage() {
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
       localStorage.setItem("user", JSON.stringify(data.data.user));
-      // Save user to context (this also writes to localStorage)
       setUser(data.data.user);
 
       router.push("/dashboard");
@@ -66,115 +64,119 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo/Header */}
-        <div className="text-center flex flex-col items-center">
+    <div className="login-page">
+      <div className="login-card">
+        {/* Simple Brand Header */}
+        <div className="text-center mb-10">
           <img
             src="/assets/card-cove-logo.png"
             alt="Card Cove"
-            className="h-16 w-auto object-contain mb-4"
+            className="h-14 w-auto mx-auto mb-6 brightness-200 contrast-100"
           />
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white">Welcome to Card Cove</h2>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            {requiresMFA ? "Enter your MFA code to continue" : "Sign in to your account to continue"}
+          <h2 className="text-3xl font-light text-white tracking-wide">
+            Sign In
+          </h2>
+          <div className="h-0.5 w-12 bg-cyan-500 mx-auto mt-4 rounded-full opacity-50"></div>
+        </div>
+
+        <form className="space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 flex items-center gap-3">
+              <svg className="h-4 w-4 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-xs font-medium text-red-400">{error}</p>
+            </div>
+          )}
+
+          {!requiresMFA ? (
+            <>
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-xs font-medium text-gray-400 ml-1">
+                  Email Address
+                </label>
+                <input
+                  id="email" name="email" type="email" autoComplete="email" required
+                  value={formData.email} onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:bg-white/10 focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white text-sm outline-none transition-all placeholder:text-gray-600"
+                  placeholder="name@company.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-xs font-medium text-gray-400 ml-1">
+                  Password
+                </label>
+                <input
+                  id="password" name="password" type="password" autoComplete="current-password" required
+                  value={formData.password} onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:bg-white/10 focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white text-sm outline-none transition-all placeholder:text-gray-600"
+                  placeholder="••••••••"
+                />
+                <div className="pt-1 px-1">
+                  <a href="/forgot-password" title="Coming soon" className="text-xs text-cyan-500 hover:text-cyan-400 transition-colors">
+                    Forgot Password?
+                  </a>
+                </div>
+              </div>
+
+              <div className="flex items-center px-1 pt-1">
+                <input 
+                  id="remember-me" name="remember-me" type="checkbox" 
+                  className="h-4 w-4 bg-white/5 border-white/10 text-cyan-600 rounded cursor-pointer accent-cyan-600" 
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-xs text-gray-400 cursor-pointer">
+                  Keep me logged in
+                </label>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-8">
+              <div className="text-center">
+                <p className="text-xs font-medium text-cyan-400 uppercase tracking-widest">
+                  Verification Required
+                </p>
+                <p className="text-[10px] text-gray-500 mt-2 leading-relaxed">
+                  A security code was sent to your email.
+                </p>
+              </div>
+
+              <div className="space-y-3 text-center">
+                <input
+                  id="mfaCode" name="mfaCode" type="text" maxLength={6} required
+                  value={formData.mfaCode} onChange={handleChange}
+                  className="w-full h-14 bg-white/5 border border-white/10 rounded-xl text-white text-center text-3xl font-light tracking-[0.5em] focus:bg-white/10 focus:ring-1 focus:ring-cyan-500/50 focus:outline-none transition-all"
+                  placeholder="000000" autoFocus
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { setRequiresMFA(false); setFormData({ ...formData, mfaCode: "" }); }}
+                className="w-full text-xs font-medium text-gray-500 hover:text-white transition-colors"
+              >
+                ← Back to login
+              </button>
+            </div>
+          )}
+
+          <button
+            type="submit" disabled={loading}
+            className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-medium text-sm transition-all shadow-lg shadow-cyan-900/20 active:scale-[0.98] disabled:opacity-50 mt-4"
+          >
+            {loading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+            ) : (
+              <span>{requiresMFA ? "Complete Authentication" : "Enter Dashboard"}</span>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-12 pt-6 border-t border-white/5 text-center">
+          <p className="text-[10px] text-gray-600 uppercase tracking-[0.2em] font-medium">
+            Secure Cloud Inventory
           </p>
         </div>
-
-        {/* Login Form */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-8">
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-                <div className="flex">
-                  <svg className="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="ml-3 text-sm text-red-700 dark:text-red-300">{error}</p>
-                </div>
-              </div>
-            )}
-
-            {!requiresMFA ? (
-              <>
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    id="email" name="email" type="email" autoComplete="email" required
-                    value={formData.email} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="admin@cardcove.com"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Password
-                  </label>
-                  <input
-                    id="password" name="password" type="password" autoComplete="current-password" required
-                    value={formData.password} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div>
-                  <label htmlFor="mfaCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    MFA Code
-                  </label>
-                  <input
-                    id="mfaCode" name="mfaCode" type="text" maxLength={6} required
-                    value={formData.mfaCode} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-2xl tracking-widest"
-                    placeholder="123456" autoFocus
-                  />
-                  <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 text-center">
-                    Enter the 6-digit code from your authenticator app
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => { setRequiresMFA(false); setFormData({ ...formData, mfaCode: "" }); }}
-                  className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-                >
-                  ← Back to login
-                </button>
-              </>
-            )}
-
-            {!requiresMFA && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input id="remember-me" name="remember-me" type="checkbox" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                  <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">Remember me</label>
-                </div>
-                <div className="text-sm">
-                  <a href="/forgot-password" className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">Forgot password?</a>
-                </div>
-              </div>
-            )}
-
-            <button
-              type="submit" disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? (
-                <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : requiresMFA ? "Verify & Sign In" : "Sign In"}
-            </button>
-          </form>
-
-          
-        </div>
-
-        <p className="text-center text-xs text-gray-500 dark:text-gray-400">© 2024 Card Cove. All rights reserved.</p>
       </div>
     </div>
   );

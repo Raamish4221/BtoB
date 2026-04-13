@@ -77,7 +77,6 @@ export default function ProductsPage() {
   const [error,       setError]       = useState<string | null>(null);
 
   // Filters
-  const [query,           setQuery]           = useState("");
   const [filterCategory,  setFilterCategory]  = useState("all");
 
   // Pagination
@@ -99,7 +98,6 @@ export default function ProductsPage() {
       setLoading(true);
       setError(null);
       const res = await api.getClientProducts({
-        search:   query.trim() || undefined,
         category: filterCategory !== "all" ? filterCategory : undefined,
         page,
         limit: LIMIT,
@@ -112,10 +110,10 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [query, filterCategory, page]);
+  }, [filterCategory, page]);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); }, [query, filterCategory]);
+  useEffect(() => { setPage(1); }, [filterCategory]);
   useEffect(() => { load(); }, [load]);
 
   // ─── Render ──────────────────────────────────────────────────────────────
@@ -128,31 +126,45 @@ export default function ProductsPage() {
         <section className="app-card app-hero">
           <h1 className="app-title">Products</h1>
           <p className="app-subtitle">
-            Select a product card to open details, then add to cart or buy now.
+            Browse our collection and select a product to see details.
           </p>
         </section>
 
-        {/* Search + category filter */}
+        {/* Category Selection Dropdown */}
         <section className="app-card">
-          <div className="flex flex-col sm:flex-row gap-3 w-full">
-            <input
-              type="search"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search products..."
-              className="app-input flex-1"
-            />
-            {categories.length > 0 && (
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Filter by Category:
+              </label>
               <select
                 value={filterCategory}
                 onChange={e => setFilterCategory(e.target.value)}
-                className="app-input sm:w-48"
+                className="app-input sm:w-64"
               >
                 <option value="all">All Categories</option>
                 {categories.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Selected Category Chip */}
+            {filterCategory !== "all" && (
+              <div className="flex items-center">
+                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-bold border border-blue-200 dark:border-blue-800">
+                  <span>Category: {filterCategory}</span>
+                  <button
+                    onClick={() => setFilterCategory("all")}
+                    className="hover:text-blue-900 dark:hover:text-blue-100 transition-colors"
+                    title="Clear filter"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
             )}
           </div>
         </section>
@@ -190,9 +202,7 @@ export default function ProductsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                 </svg>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  {query || filterCategory !== "all"
-                    ? "No products match your search."
-                    : "No products available."}
+                  No products available in this category.
                 </p>
               </section>
             ) : (
@@ -210,7 +220,7 @@ export default function ProductsPage() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <section className="flex items-center justify-between">
+              <section className="flex items-center justify-between mt-4">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Page {page} of {totalPages}
                 </p>

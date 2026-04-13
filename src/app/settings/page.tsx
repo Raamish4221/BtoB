@@ -9,11 +9,10 @@ export default function SettingsPage() {
   return (
     <Dashboard>
       <div className="app-page">
+        {/* Hero */}
         <section className="app-card app-hero">
-          <div>
-            <h1 className="app-title">Settings</h1>
-            <p className="app-subtitle">Manage your account preferences and settings.</p>
-          </div>
+          <h1 className="app-title">Settings</h1>
+          <p className="app-subtitle">Manage your account preferences and settings.</p>
         </section>
 
         <section className="app-card">
