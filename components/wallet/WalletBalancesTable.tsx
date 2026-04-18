@@ -1,7 +1,19 @@
 "use client";
 
-import { WalletBalance } from "@/app/wallet/page";
 import { useState } from "react";
+
+interface WalletBalance {
+  id: string;
+  userName: string;
+  company: string;
+  userEmail: string;
+  balance: number;
+  lastTopup?: string;
+  lastTopupAmount?: number;
+  totalTopups: number;
+  totalSpent: number;
+  createdAt: string;
+}
 
 interface WalletBalancesTableProps {
   balances: WalletBalance[];

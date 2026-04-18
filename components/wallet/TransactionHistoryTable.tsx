@@ -304,7 +304,7 @@ export default function TransactionHistoryTable({
           <p className="text-lg font-bold text-green-600 dark:text-green-400">
             $
             {filteredTransactions
-              .filter((t) => t.type === "topup")
+              .filter((t) => t.type === "credit")
               .reduce((sum, t) => sum + t.amount, 0)
               .toLocaleString()}
           </p>
@@ -315,7 +315,7 @@ export default function TransactionHistoryTable({
             $
             {Math.abs(
               filteredTransactions
-                .filter((t) => t.type === "purchase")
+                .filter((t) => t.type === "debit")
                 .reduce((sum, t) => sum + t.amount, 0)
             ).toLocaleString()}
           </p>
@@ -325,7 +325,7 @@ export default function TransactionHistoryTable({
           <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
             $
             {filteredTransactions
-              .filter((t) => t.type === "refund")
+              .filter((t) => t.type === "credit")
               .reduce((sum, t) => sum + t.amount, 0)
               .toLocaleString()}
           </p>
