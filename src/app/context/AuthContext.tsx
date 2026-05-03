@@ -9,6 +9,7 @@ export interface AuthUser {
   role_name?: string;
   company_name?: string;
   status?: string;
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {

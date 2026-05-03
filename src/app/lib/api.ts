@@ -29,6 +29,9 @@ class ApiService {
         window.location.href = '/login';
 
       }
+      if (response.status === 403 && data.message?.includes('You must change your password before accessing this resource.')) {
+        window.location.href = '/change-password';
+      }
       throw new Error(data.message || 'API request failed');
     }
     return data;
@@ -82,6 +85,10 @@ class ApiService {
 
   async resetPassword(token: string, newPassword: string) {
     return this.request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }, false);
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
   }
 
 
