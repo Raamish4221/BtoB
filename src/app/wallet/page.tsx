@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import Dashboard from "@/components/Dashboard";
 import { api } from "@/src/app/lib/api";
 
@@ -22,6 +22,9 @@ export interface TopupRequest {
 }
 
 export interface Transaction {
+  performedBy: ReactNode;
+  company: any;
+  userName: any;
   id: string;
   type: "credit" | "debit";
   amount: number;
@@ -80,15 +83,19 @@ function mapRequest(r: any): TopupRequest {
 
 function mapTransaction(t: any): Transaction {
   return {
-    id:              String(t.id),
-    type:            t.type || t.transaction_type,
-    amount:          parseFloat(t.amount),
-    balanceBefore:   parseFloat(t.balance_before  || t.balanceBefore  || 0),
-    balanceAfter:    parseFloat(t.balance_after   || t.balanceAfter   || 0),
-    description:     t.description || "",
-    timestamp:       t.created_at  || t.timestamp || "",
-    processedByName: t.processedByName || undefined,
-  };
+  id: String(t.id),
+  type: t.type || t.transaction_type,
+  amount: parseFloat(t.amount),
+  balanceBefore: parseFloat(t.balance_before || t.balanceBefore || 0),
+  balanceAfter: parseFloat(t.balance_after || t.balanceAfter || 0),
+  description: t.description || "",
+  timestamp: t.created_at || t.timestamp || "",
+  processedByName: t.processedByName || undefined,
+  performedBy: undefined,
+  company: undefined,
+  userName: undefined,
+  
+};
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
