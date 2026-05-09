@@ -113,6 +113,18 @@ export default function ProductDetailsPage() {
   }
 
   const favorite = isFavorite(product.id);
+  const cartSnapshot = {
+    id:               product.id,
+    name:             product.name,
+    category:         product.category,
+    price:            product.price,
+    imageGradient:    product.imageGradient,
+    badge:            product.badge,
+    shortDescription: product.shortDescription,
+    description:      product.description,
+    rating:           product.rating,
+    reviews:          product.reviews,
+  };
 
   return (
     <Dashboard>
@@ -155,12 +167,12 @@ export default function ProductDetailsPage() {
               </label>
 
               <button type="button" className="app-button-primary flex-1 sm:flex-none"
-                onClick={() => addToCart(product.id, quantity)}>
+                onClick={() => addToCart(product.id, quantity, cartSnapshot)}>
                 Add to Cart
               </button>
 
               <button type="button" className="app-button-secondary flex-1 sm:flex-none"
-                onClick={() => { buyNow(product.id); router.push("/cart"); }}>
+                onClick={() => { buyNow(product.id, cartSnapshot); router.push("/cart"); }}>
                 Buy Now
               </button>
 
@@ -168,7 +180,7 @@ export default function ProductDetailsPage() {
                 className={`app-button-secondary flex-1 sm:flex-none flex items-center justify-center gap-2 ${
                   favorite ? "text-red-500 border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800" : ""
                 }`}
-                onClick={() => toggleFavorite(product.id)}>
+                onClick={() => toggleFavorite(product.id, cartSnapshot)}>
                 <HeartIcon filled={favorite} />
                 <span>{favorite ? "Favorited" : "Add to Favorites"}</span>
               </button>

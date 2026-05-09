@@ -44,6 +44,8 @@ export interface WalletData {
   total_spent: number;
 }
 
+const REQUESTS_PAGE_SIZE = 10;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function statusPillCls(status: TopupRequest["status"]) {
@@ -145,7 +147,7 @@ export default function WalletPage() {
   const loadRequests = useCallback(async () => {
     try {
       setLoadingRequests(true);
-      const res = await api.getMyTopupRequests(undefined, reqPage, 10);
+      const res = await api.getMyTopupRequests(undefined, reqPage, REQUESTS_PAGE_SIZE);
       setRequests((res.data || []).map(mapRequest));
       setReqTotal(res.pagination?.total || 0);
       setReqTotalPages(res.pagination?.totalPages || 1);
@@ -192,8 +194,8 @@ export default function WalletPage() {
 
     setSubmitting(true);
     try {
-      const res = await api.requestTopup(num, receiptFile);
-      setSubmitSuccess(`Request #${res.data?.requestId} submitted! Awaiting admin approval.`);
+      await api.requestTopup(num, receiptFile);
+      setSubmitSuccess("Top-up request submitted! Awaiting admin approval.");
       setShowTopupModal(false);
       setAmount("");
       setReceiptFile(null);
@@ -347,15 +349,17 @@ export default function WalletPage() {
                     <table className="w-full text-sm">
                       <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                          {["Request ID", "Date", "Amount", "Status"].map(h => (
+                          {["Request #", "Date", "Amount", "Status"].map(h => (
                             <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {requests.map(r => (
+                        {requests.map((r, index) => (
                           <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <td className="px-4 py-3 font-mono font-medium text-gray-900 dark:text-white">{r.id}</td>
+                            <td className="px-4 py-3 font-mono font-medium text-gray-900 dark:text-white">
+                              {(reqPage - 1) * REQUESTS_PAGE_SIZE + index + 1}
+                            </td>
                             <td className="px-4 py-3 text-gray-600 dark:text-gray-400 whitespace-nowrap">{formatDateTime(r.requestDate)}</td>
                             <td className="px-4 py-3 font-semibold text-gray-900 dark:text-white">
                               {currency} {r.amount.toLocaleString()}
