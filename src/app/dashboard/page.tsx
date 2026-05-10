@@ -225,16 +225,16 @@ export default function Page() {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-gray-500 dark:text-gray-400">
-                      <th className="py-2 pr-4">Request ID</th>
+                      <th className="py-2 pr-4">Request #</th>
                       <th className="py-2 pr-4">Requested At</th>
                       <th className="py-2 pr-4">Amount</th>
                       <th className="py-2">Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recentTopups.map(r => (
+                    {recentTopups.map((r, index) => (
                       <tr key={r.id} className="border-b border-gray-100 dark:border-gray-700/60">
-                        <td className="py-3 pr-4 font-medium">#{r.id}</td>
+                        <td className="py-3 pr-4 font-medium">#{index + 1}</td>
                         <td className="py-3 pr-4">{fmt(r.requestedAt)}</td>
                         <td className="py-3 pr-4">{r.currency} {r.amount.toLocaleString()}</td>
                         <td className="py-3">

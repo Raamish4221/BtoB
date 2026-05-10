@@ -29,7 +29,13 @@ class ApiService {
         window.location.href = '/login';
 
       }
-      throw new Error(data.message || 'API request failed');
+      if (response.status === 403 && data.message?.includes('You must change your password before accessing this resource.')) {
+        window.location.href = '/change-password';
+      }
+      const error = new Error(data.message || 'API request failed') as Error & { status?: number; data?: any };
+      error.status = response.status;
+      error.data = data;
+      throw error;
     }
     return data;
   }
@@ -82,6 +88,30 @@ class ApiService {
 
   async resetPassword(token: string, newPassword: string) {
     return this.request('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }, false);
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) });
+  }
+
+  async requestOtp(email: string) {
+    return this.request('/auth/request-otp', { method: 'POST', body: JSON.stringify({ email }) });
+  }
+
+  async verifyOtp(email: string, otp: string) {
+    return this.request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp }) });
+  }
+
+  async updateMySettings(settings: {
+    name?: string;
+    email?: string;
+    company?: string;
+    password?: string;
+  }) {
+    return this.request('/client/me/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
   }
 
 

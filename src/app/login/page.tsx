@@ -47,10 +47,15 @@ export default function LoginPage() {
         return;
       }
 
+      const userToStore = {
+        ...data.data.user,
+        mustChangePassword: data.data.mustChangePassword
+      };
+
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
-      localStorage.setItem("user", JSON.stringify(data.data.user));
-      setUser(data.data.user);
+      localStorage.setItem("user", JSON.stringify(userToStore));
+      setUser(userToStore);
 
       router.push("/dashboard");
     } catch (err: any) {

@@ -1,12 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
+import { useAuth } from "@/app/context/AuthContext";
+import { useRouter, usePathname } from "next/navigation";
+
 export default function Dashboard({ children }: { children: ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!isLoading && user?.mustChangePassword && pathname !== '/change-password') {
+      router.push('/change-password');
+    }
+  }, [user, isLoading, pathname, router]);
 
   return (
     <div className="app-shell h-screen overflow-hidden">

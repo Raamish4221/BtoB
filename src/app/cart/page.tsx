@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Dashboard from "@/components/Dashboard";
 import { useShop } from "@/app/context/ShopContext";
+import { useAuth } from "@/app/context/AuthContext";
 import { api } from "@/app/lib/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -14,11 +15,151 @@ interface WalletInfo {
   currency: string;
 }
 
+function mapCartProductFromApi(p: any) {
+  return {
+    id:               String(p.id),
+    name:             p.name || "",
+    category:         p.category || "",
+    price:            parseFloat(p.price) || 0,
+    imageGradient:    "",
+    badge:            p.hasCustomPrice ? "Special Price" : "",
+    shortDescription: p.description
+      ? p.description.slice(0, 80) + (p.description.length > 80 ? "..." : "")
+      : `${p.brand || p.category || "Digital"} product - instant delivery.`,
+    description:      p.description || "",
+    rating:           0,
+    reviews:          0,
+  };
+}
+
+function otpVerified(response: any) {
+  return response?.success === true || response?.data?.success === true;
+}
+
+function getApiMessage(error: any, fallback: string) {
+  return error?.message || fallback;
+}
+
+function OrderOtpModal({
+  email = 'kingrao286@gmail.com',
+  onClose,
+  onVerified,
+  onResend,
+  verifying,
+  resending,
+  error,
+}: {
+  email: string;
+  onClose: () => void;
+  onVerified: (otp: string) => Promise<void>;
+  onResend: () => Promise<void>;
+  verifying: boolean;
+  resending: boolean;
+  error: string | null;
+}) {
+  const [otp, setOtp] = useState("");
+
+  const submit = () => {
+    if (otp.length !== 6 || verifying) return;
+    onVerified(otp);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full border border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Verify Order</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+              Enter the 6-digit code sent to {email}.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={verifying}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-40"
+            aria-label="Close OTP verification"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              OTP Code
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={otp}
+              onChange={e => setOtp(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={e => {
+                if (e.key === "Enter") submit();
+              }}
+              disabled={verifying}
+              className="w-full px-4 py-3 text-center text-2xl tracking-[0.5em] font-mono border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              placeholder="000000"
+              autoFocus
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={onResend}
+            disabled={resending || verifying}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+          >
+            {resending ? "Sending new code..." : "Resend code"}
+          </button>
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={verifying}
+            className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={otp.length !== 6 || verifying}
+            className="px-5 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {verifying ? (
+              <>
+                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Verifying...
+              </>
+            ) : "Verify & Place Order"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Checkout Modal ───────────────────────────────────────────────────────────
 
 function CheckoutModal({
   cartItems, cartTotal, getProduct,
-  onClose, onConfirm, placing, placeError,
+  onClose, onConfirm, placing, requestingOtp, placeError,
 }: {
   cartItems:  { productId: string; quantity: number }[];
   cartTotal:  number;
@@ -26,6 +167,7 @@ function CheckoutModal({
   onClose:    () => void;
   onConfirm:  () => Promise<void>;
   placing:    boolean;
+  requestingOtp: boolean;
   placeError: string | null;
 }) {
   const [wallet,        setWallet]        = useState<WalletInfo | null>(null);
@@ -165,7 +307,7 @@ function CheckoutModal({
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
-              Available codes will be emailed to you immediately after placing.
+              You will verify this order with a 6-digit OTP before it is placed.
             </p>
           )}
 
@@ -185,16 +327,16 @@ function CheckoutModal({
           </button>
           <button
             onClick={onConfirm}
-            disabled={placing || loadingWallet || !canAfford}
+            disabled={placing || requestingOtp || loadingWallet || !canAfford}
             className="px-6 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2 font-medium"
           >
-            {placing ? (
+            {placing || requestingOtp ? (
               <>
                 <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Placing Order…
+                {requestingOtp ? "Sending OTP..." : "Placing Order..."}
               </>
             ) : (
               <>
@@ -215,17 +357,106 @@ function CheckoutModal({
 
 export default function CartPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const {
     cartItems, cartTotal,
     updateCartQuantity, removeFromCart, clearCart,
-    getCartProduct,
+    getCartProduct, addToCart,
   } = useShop();
 
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
   const [placing,      setPlacing]      = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [resendingOtp, setResendingOtp] = useState(false);
   const [placeError,   setPlaceError]   = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const missingProducts = cartItems.filter(item => !item.product);
+    if (missingProducts.length === 0) return;
+
+    let cancelled = false;
+    Promise.all(
+      missingProducts.map(item =>
+        api.getClientProductById(item.productId)
+          .then(res => ({ productId: item.productId, product: mapCartProductFromApi(res.data) }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      if (cancelled) return;
+      results.forEach(result => {
+        if (result?.product) {
+          addToCart(result.productId, 0, result.product);
+        }
+      });
+    });
+
+    return () => { cancelled = true; };
+  }, [cartItems, addToCart]);
+
+  const sendOrderOtp = async (isResend = false) => {
+    const email = user?.email;
+    if (!email) {
+      const message = "Could not find your account email. Please sign in again.";
+      if (isResend) setOtpError(message);
+      else setPlaceError(message);
+      return;
+    }
+
+    if (isResend) {
+      setResendingOtp(true);
+      setOtpError(null);
+    } else {
+      setRequestingOtp(true);
+      setPlaceError(null);
+    }
+
+    try {
+      await api.requestOtp(email);
+      setOtpError(null);
+      setShowOtpModal(true);
+    } catch (e: any) {
+      const message = getApiMessage(e, "Failed to send OTP. Please try again.");
+      if (isResend) setOtpError(message);
+      else setPlaceError(message);
+    } finally {
+      if (isResend) setResendingOtp(false);
+      else setRequestingOtp(false);
+    }
+  };
 
   const handleConfirmOrder = async () => {
+    await sendOrderOtp(false);
+  };
+
+  const handleVerifiedOrder = async (otp: string) => {
+    const email = user?.email;
+    if (!email) {
+      setOtpError("Could not find your account email. Please sign in again.");
+      return;
+    }
+
+    setVerifyingOtp(true);
+    setOtpError(null);
+    try {
+      const result = await api.verifyOtp(email, otp);
+      if (!otpVerified(result)) {
+        setOtpError(result?.message || result?.data?.message || "Invalid OTP code. Please try again.");
+        return;
+      }
+
+      setShowOtpModal(false);
+      await placeOrder();
+    } catch (e: any) {
+      setOtpError(getApiMessage(e, "OTP verification failed. Please try again."));
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const placeOrder = async () => {
     setPlacing(true);
     setPlaceError(null);
     try {
@@ -339,10 +570,25 @@ export default function CartPage() {
           cartItems={cartItems}
           cartTotal={cartTotal}
           getProduct={getCartProduct}
-          onClose={() => { if (!placing) setShowCheckout(false); }}
+          onClose={() => { if (!placing && !requestingOtp) setShowCheckout(false); }}
           onConfirm={handleConfirmOrder}
           placing={placing}
+          requestingOtp={requestingOtp}
           placeError={placeError}
+        />
+      )}
+
+      {showOtpModal && user?.email && (
+        <OrderOtpModal
+          email={user.email}
+          onClose={() => {
+            if (!verifyingOtp && !placing) setShowOtpModal(false);
+          }}
+          onVerified={handleVerifiedOrder}
+          onResend={() => sendOrderOtp(true)}
+          verifying={verifyingOtp || placing}
+          resending={resendingOtp}
+          error={otpError}
         />
       )}
     </Dashboard>
